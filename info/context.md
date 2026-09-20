@@ -17,16 +17,24 @@ conventions for whoever (human or AI) works on the code next.
 
 ## Current status
 
-V1 built and working end-to-end (all build-order steps from
-`info/decisions/2026-09-20-architecture.md` / the approved implementation
-plan are done): profile, work-history sources, tracker CRUD with inline
-status updates, the funnel roll-up algorithm (`code/funnel.js`, covered by
-`code/test/funnel.test.js`) driving the Visualize tab's Sankey chart, the
-`claude` CLI wrapper, and the Builder tab's extract/duplicate-check/generate
-flow. Verified via `node --test` (11 passing) and a full click-through in a
-real browser (BrowserOS neo) including a real AI-generated resume and cover
-letter, contenteditable edit + save, and cascade delete — no console errors
-or server errors observed.
+V1 built and working end-to-end (backend: all build-order steps from
+`info/decisions/2026-09-20-architecture.md` are done — profile, work-history
+sources, tracker CRUD with inline status updates, the funnel roll-up
+algorithm in `code/funnel.js` covered by `code/test/funnel.test.js`, the
+`claude` CLI wrapper, and the Builder flow's extract/duplicate-check/generate
+endpoints).
+
+The 5-tab frontend was then rebuilt in React + TypeScript + Tailwind v4 +
+shadcn/ui (`code/client/`), per `info/decisions/2026-09-21-shadcn-ui-migration.md`
+— same behavior, new look, backend untouched. `public/document.html` (the
+generated-document viewer/print page) stays plain HTML/JS by design.
+Verified via `node --test` (11 passing, backend-only) and a full
+click-through in a real browser (BrowserOS neo) after both the initial
+build and the shadcn migration — including a real AI-generated resume and
+cover letter, contenteditable edit + save, cascade delete, the
+duplicate-check warning, and confirming an in-progress Builder draft
+survives switching tabs. No console errors or server errors observed either
+time.
 
 Not yet done / possible next steps (none requested yet, don't build ahead of
 demand): print-layout polish beyond the basic `break-inside: avoid` rules,
@@ -36,20 +44,30 @@ anything past the single-profile/single-user scope.
 
 - All app code lives under `code/`. Run with `npm start` (from `code/`);
   serves on localhost only, no auth.
-- Node.js + Express, plain HTML/CSS/JS on the frontend — no React, no
-  bundler, no build step.
+- Backend: Node.js + Express, plain JS, no framework beyond Express.
+- Frontend (the 5 tabs): React 19 + TypeScript + Tailwind v4 + shadcn/ui, a
+  separate Vite project in `code/client/` with its own `package.json`,
+  built and served by Express (`code/package.json`'s `postinstall`/`build`/
+  `start` scripts cascade into it, so day-to-day commands don't change).
+  `public/document.html` (the generated-document viewer/print page) is the
+  one deliberate exception — still plain HTML/JS, no React, no build step.
 - Storage: SQLite via Node's built-in `node:sqlite` (`DatabaseSync`) — no
   native dependency. DB file at `code/data/resume-builder.db`, gitignored.
 - AI calls shell out to the `claude` CLI (`claude -p ... --output-format
   json --allowedTools ""`) via `child_process.execFile` — never the
   Anthropic API/SDK directly, never `exec`/a shell string (prompts embed
   arbitrary pasted user text).
-- One Express router per resource under `code/routes/`, one frontend JS file
-  per tab under `code/public/`, matched 1:1.
+- One Express router per resource under `code/routes/`, one React component
+  per tab under `code/client/src/components/`, matched 1:1.
 - `code/funnel.js` is the one piece of non-trivial logic (funnel roll-up for
   the Sankey chart) and is the one thing with `node --test` coverage
   (`code/test/`), decoupled from Express/SQLite.
-- Chart library: ECharts, served locally from `node_modules` (no CDN, no
-  build step).
+- Chart library: ECharts, imported as a real (tree-shaken) module in the
+  React app — no CDN, no separately-served UMD file.
 - PDF export is the browser's native print-to-PDF, no PDF library.
+- Tab content in `App.tsx` uses `forceMount` (not Radix's default of
+  unmounting inactive tabs) so switching tabs never wipes in-progress state
+  — see `info/decisions/2026-09-21-shadcn-ui-migration.md` for why this
+  matters and what it costs (`TrackerTab` needs an explicit refresh signal
+  instead of refetching on every mount).
 - See `info/decisions/` for the full reasoning behind each of these choices.

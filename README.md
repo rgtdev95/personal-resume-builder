@@ -19,7 +19,26 @@ npm start
 ```
 
 Then open **http://127.0.0.1:3000**. The SQLite file is created on first run
-at `code/data/resume-builder.db` (gitignored).
+at `code/data/resume-builder.db` (gitignored). `npm install`/`npm start` at
+the `code/` root cascade into `code/client/` automatically (its own
+`package.json` for the React/Vite/shadcn frontend) — there's nothing extra
+to remember day to day.
+
+## Developing the UI
+
+The frontend (`code/client/`) is a separate Vite app, so `npm start`
+rebuilds it from scratch every time — fine for normal use, slow for
+iterating on styling. While actively working on the UI, run two terminals
+instead:
+
+```
+node server.js              # terminal 1, from code/ — the API on :3000
+npm run dev:client           # terminal 2, from code/ — Vite + HMR on :5173
+```
+
+Open the Vite terminal's URL (usually http://localhost:5173); it proxies
+`/api/*` to the Express server so there's one origin from the browser's
+point of view.
 
 ## Test it
 
