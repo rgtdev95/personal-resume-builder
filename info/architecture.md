@@ -153,10 +153,14 @@ All routes are JSON in/out (`Content-Type: application/json`) except where noted
   uses `execFile` (never a shell string), so pasted job-description text is
   never shell-interpreted.
 - **The tracker row is created at the moment you click Generate**, not
-  earlier in the Builder flow. This is what makes Cancel a pure client-side
-  reset with nothing to clean up on the server — creating the row right
-  after the duplicate-check instead would let Cancel leave a row with no
-  documents ever attached to it.
+  earlier in the Builder flow. `builder.js`'s `ensureApplication()` POSTs
+  `/api/applications` only if it doesn't already hold an `applicationId` for
+  the current draft; the id it gets back is cached in memory so a second
+  Generate click in the same draft (e.g. cover letter right after resume)
+  reuses that row instead of creating a duplicate. This is also what makes
+  Cancel a pure client-side reset with nothing to clean up on the server —
+  creating the row right after the duplicate-check instead would let Cancel
+  leave a row with no documents ever attached to it.
 - **Generated documents store structured JSON, not raw AI-written
   HTML/Markdown.** The AI only supplies the tailored parts (summary,
   skills, experience bullets / cover letter paragraphs); the server splices

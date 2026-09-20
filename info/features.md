@@ -47,10 +47,16 @@ for how the chart is derived from the status data.
 4. Pick which Work History entries to include (defaults to all).
 5. **Generate Resume** / **Generate Cover Letter** — calls the AI, renders
    the result into a fixed HTML template, and creates the Tracker row for
-   you at this point (see [architecture.md](architecture.md#design-notes)
-   for why the row isn't created earlier).
+   you automatically at this point; there's no separate "save to tracker"
+   step. Whichever of the two buttons you click first is what creates the
+   row — clicking the other one afterward (e.g. Generate Cover Letter right
+   after Generate Resume) reuses that same row instead of creating a
+   duplicate. See [architecture.md](architecture.md#design-notes) for why
+   the row isn't created earlier (at Extract or duplicate-check time).
 6. **Cancel** resets the whole form. Since the tracker row isn't created
-   until you click Generate, Cancel never leaves a stray row behind.
+   until you click Generate, Cancel never leaves a stray row behind — but
+   it also can't undo a generation that already happened; Cancel only
+   clears the form so you can start a fresh draft.
 7. Generated documents open in their own page (`document.html`) where the
    text is directly editable (click and type) and there's a **Print / Save
    as PDF** button that uses the browser's native print-to-PDF.
