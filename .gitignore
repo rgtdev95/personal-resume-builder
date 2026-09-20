@@ -4,6 +4,10 @@ node_modules/
 # App data (SQLite db file, created at runtime)
 code/data/
 
+# Built client (vite build output)
+code/client/dist/
+code/client/node_modules/.tmp/
+
 # Logs
 npm-debug.log*
 *.log

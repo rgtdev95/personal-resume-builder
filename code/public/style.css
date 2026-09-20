@@ -1,3 +1,6 @@
+/* Styles for the standalone document-viewer page (document.html) only.
+   The main app's 5 tabs are styled by Tailwind/shadcn in client/ instead. */
+
 * {
   box-sizing: border-box;
 }
@@ -5,259 +8,36 @@
 body {
   font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
-  background: #f5f6f8;
-  color: #1a1a1a;
-}
-
-main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
-}
-
-h2 {
-  margin-top: 0;
-}
-
-.hint {
-  color: #555;
-  max-width: 65ch;
-}
-
-.empty {
-  color: #777;
-  font-style: italic;
+  background: #f5f5f5;
+  color: #0a0a0a;
 }
 
 .status {
   color: #2a7a2a;
   margin-left: 8px;
-}
-
-/* Nav */
-
-nav {
-  display: flex;
-  gap: 4px;
-  background: #1f2733;
-  padding: 0 16px;
-  overflow-x: auto;
-}
-
-nav button {
-  background: none;
-  border: none;
-  color: #cfd6e0;
-  padding: 14px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  white-space: nowrap;
-}
-
-nav button:hover {
-  color: #fff;
-}
-
-nav button.active {
-  color: #fff;
-  border-bottom-color: #4c8bf5;
-}
-
-/* Forms */
-
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 640px;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: #333;
-}
-
-.checkbox-label {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-input,
-select,
-textarea {
-  font: inherit;
-  padding: 8px 10px;
-  border: 1px solid #ccd2da;
-  border-radius: 4px;
-  background: #fff;
-}
-
-textarea {
-  resize: vertical;
-  font-family: inherit;
-}
-
-fieldset {
-  border: 1px solid #dde1e7;
-  border-radius: 6px;
-  padding: 14px;
-}
-
-legend {
-  padding: 0 6px;
-  font-weight: 600;
-  font-size: 13px;
-  color: #444;
-}
-
-button {
-  font: inherit;
-  padding: 8px 14px;
-  border: 1px solid #4c8bf5;
-  background: #4c8bf5;
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #3a76e0;
-}
-
-#tracker-cancel,
-#builder-cancel,
-[data-action='delete'] {
-  background: #fff;
-  color: #333;
-  border-color: #ccd2da;
-}
-
-#tracker-cancel:hover,
-#builder-cancel:hover,
-[data-action='delete']:hover {
-  background: #f0f1f3;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Education rows */
-
-.education-row {
-  display: grid;
-  grid-template-columns: 2fr 2fr 1fr auto;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-/* Source cards */
-
-.source-card {
-  background: #fff;
-  border: 1px solid #dde1e7;
-  border-radius: 6px;
-  padding: 14px;
-  margin-bottom: 14px;
-}
-
-.source-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.source-header .source-title {
-  flex: 1;
-  font-weight: 600;
-}
-
-.source-card textarea {
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.source-checkbox {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  padding: 4px 0;
-}
-
-/* Tracker table */
-
-#tracker-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  margin-top: 12px;
-}
-
-#tracker-table th,
-#tracker-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid #e5e8ec;
   font-size: 13px;
 }
-
-#tracker-table th {
-  background: #eef1f5;
-}
-
-dialog {
-  border: none;
-  border-radius: 8px;
-  padding: 20px;
-  max-width: 480px;
-  width: 100%;
-}
-
-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-/* Warning banner */
-
-.warning {
-  background: #fff4e5;
-  border: 1px solid #f0b464;
-  border-radius: 6px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  max-width: 640px;
-}
-
-.warning p {
-  margin: 0 0 10px;
-}
-
-/* Visualize */
-
-#funnel-chart {
-  width: 100%;
-  height: 640px;
-  background: #fff;
-  border-radius: 6px;
-}
-
-/* Generated document view (also used inside document.html) */
 
 .document-toolbar {
   display: flex;
   gap: 10px;
   align-items: center;
   padding: 14px 20px;
-  background: #1f2733;
+  background: #1a1a1a;
+}
+
+.document-toolbar button {
+  font: inherit;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.document-toolbar button:hover {
+  background: #d4d4d4;
 }
 
 .document-page {
@@ -265,7 +45,8 @@ dialog::backdrop {
   margin: 24px auto;
   background: #fff;
   padding: 48px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .doc-header h1 {
@@ -274,7 +55,7 @@ dialog::backdrop {
 
 .contact-line,
 .date-line {
-  color: #444;
+  color: #525252;
   font-size: 13px;
 }
 
@@ -287,7 +68,7 @@ dialog::backdrop {
   font-size: 15px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #e5e5e5;
   padding-bottom: 4px;
 }
 
@@ -302,7 +83,7 @@ dialog::backdrop {
 }
 
 .experience-entry .dates {
-  color: #666;
+  color: #737373;
   font-size: 12px;
   margin: 2px 0 6px;
 }
