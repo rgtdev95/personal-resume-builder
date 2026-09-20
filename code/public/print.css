@@ -1,0 +1,19 @@
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    margin: 0;
+    background: #fff;
+  }
+  .document-page {
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+  .experience-entry,
+  .education-entry {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Document</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="print.css" media="print">
+</head>
+<body>
+<div class="document-toolbar no-print">
+  <button type="button" id="doc-save">Save Edits</button>
+  <button type="button" id="doc-print">Print / Save as PDF</button>
+  <span id="doc-status" class="status"></span>
+</div>
+
+<div id="doc-content" class="document-page" contenteditable="true"></div>
+
+<script src="common.js"></script>
+<script src="document.js"></script>
+</body>
+</html>
