@@ -5,6 +5,7 @@ const express = require('express');
 function rowToProfile(row) {
   return {
     full_name: row.full_name,
+    email: row.email,
     phone: row.phone,
     address: row.address,
     github_url: row.github_url,
@@ -24,19 +25,20 @@ module.exports = function profileRouter(db) {
   });
 
   router.put('/', (req, res) => {
-    const { full_name, phone, address, github_url, linkedin_url, portfolio_url, education } = req.body;
+    const { full_name, email, phone, address, github_url, linkedin_url, portfolio_url, education } = req.body;
     if (education !== undefined && !Array.isArray(education)) {
       return res.status(400).json({ error: 'education must be an array' });
     }
 
     db.prepare(
       `UPDATE profile SET
-         full_name = ?, phone = ?, address = ?,
+         full_name = ?, email = ?, phone = ?, address = ?,
          github_url = ?, linkedin_url = ?, portfolio_url = ?,
          education_json = ?, updated_at = datetime('now')
        WHERE id = 1`
     ).run(
       full_name ?? '',
+      email ?? '',
       phone ?? '',
       address ?? '',
       github_url ?? '',

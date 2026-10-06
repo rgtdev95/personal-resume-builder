@@ -1,13 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
+import { marked } from 'marked'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchJson } from '@/lib/api'
 import type { Source } from '@/lib/types'
 
+// Pasted-in content is always the user's own (single-user, localhost app),
+// so this skips HTML sanitization — there's no untrusted-author threat
+// model here to sanitize against.
+function MarkdownPreview({ text }: { text: string }) {
+  const html = useMemo(() => marked.parse(text || '*Nothing to preview yet.*', { async: false }) as string, [text])
+  return <div className="markdown-preview rounded-md border p-3 text-sm" dangerouslySetInnerHTML={{ __html: html }} />
+}
+
+// Shared by the "Add new entry" form and each SourceCard's editor — an
+// Edit/Preview toggle over one Textarea instead of two separately-managed
+// panes.
+function ContentEditor({ content, onChange, rows }: { content: string; onChange: (v: string) => void; rows: number }) {
+  return (
+    <Tabs defaultValue="edit">
+      <TabsList>
+        <TabsTrigger value="edit">Edit</TabsTrigger>
+        <TabsTrigger value="preview">Preview</TabsTrigger>
+      </TabsList>
+      <TabsContent value="edit">
+        <Textarea rows={rows} value={content} onChange={(e) => onChange(e.target.value)} placeholder="Paste raw detail here (Markdown supported)..." />
+      </TabsContent>
+      <TabsContent value="preview">
+        <MarkdownPreview text={content} />
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+// Entries can be long (a whole pasted resume) — collapsed by default so the
+// tab stays scannable; expand only the ones you need to read or edit.
 function SourceCard({ source, onChanged }: { source: Source; onChanged: () => void }) {
+  const [collapsed, setCollapsed] = useState(true)
   const [title, setTitle] = useState(source.title)
   const [content, setContent] = useState(source.content)
   const [saving, setSaving] = useState(false)
@@ -33,16 +67,36 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
-        <div className="flex gap-2">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="flex-1" />
-          <Button type="button" variant="destructive" onClick={remove}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="flex flex-1 items-center gap-2 text-left"
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? (
+              <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className="truncate font-medium">{title || 'Untitled'}</span>
+            {collapsed && (
+              <span className="shrink-0 text-xs text-muted-foreground">{content.length.toLocaleString()} chars</span>
+            )}
+          </button>
+          <Button type="button" variant="destructive" size="sm" onClick={remove}>
             Delete
           </Button>
         </div>
-        <Textarea rows={6} value={content} onChange={(e) => setContent(e.target.value)} />
-        <Button type="button" size="sm" className="w-fit" disabled={saving} onClick={save}>
-          Save
-        </Button>
+        {!collapsed && (
+          <>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+            <ContentEditor content={content} onChange={setContent} rows={10} />
+            <Button type="button" size="sm" className="w-fit" disabled={saving} onClick={save}>
+              Save
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -93,12 +147,7 @@ export function SourcesTab() {
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Title (e.g. 'Resume 2023' or 'Acme Corp role')"
             />
-            <Textarea
-              rows={8}
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-              placeholder="Paste raw detail here..."
-            />
+            <ContentEditor content={newContent} onChange={setNewContent} rows={8} />
             <Button type="submit" className="w-fit">
               Add Source
             </Button>

@@ -1,3 +1,7 @@
+@page {
+  margin: 0.6in;
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -11,9 +15,23 @@
     margin: 0;
     padding: 0;
     max-width: none;
+    outline: none; /* strip any focus ring the contenteditable region can pick up */
   }
-  .experience-entry,
-  .education-entry {
+  .entry {
     break-inside: avoid;
+  }
+  h1,
+  h2,
+  .doc-header {
+    break-after: avoid;
+  }
+
+  /* Most browsers skip background-color/background-image by default when
+     printing/saving as PDF unless "Background graphics" is checked in the
+     print dialog. Force it so the skills tags print the same as they look
+     on screen, without relying on the user finding that checkbox. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

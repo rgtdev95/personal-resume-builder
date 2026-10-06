@@ -9,7 +9,7 @@ body {
   font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   background: #f5f5f5;
-  color: #0a0a0a;
+  color: #171717;
 }
 
 .status {
@@ -40,50 +40,244 @@ body {
   background: #d4d4d4;
 }
 
+.match-banner {
+  max-width: 900px;
+  margin: 20px auto 0;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.match-score {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 28px;
+  color: #737373;
+}
+
+.match-banner[data-tier='high'] .match-score {
+  color: #15803d;
+}
+
+.match-banner[data-tier='mid'] .match-score {
+  color: #b45309;
+}
+
+.match-banner[data-tier='low'] .match-score {
+  color: #b91c1c;
+}
+
+.match-score-suffix {
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+.match-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  flex: 1;
+}
+
+.match-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 180px;
+}
+
+.match-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #737373;
+}
+
+.match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.match-tag {
+  background: #f0f0f0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.match-banner[data-tier] .match-group:first-of-type .match-tag {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.match-banner[data-tier] .match-group:last-of-type .match-tag {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.match-tag-empty {
+  font-size: 12px;
+  color: #a3a3a3;
+  font-style: italic;
+}
+
 .document-page {
-  max-width: 800px;
+  max-width: 900px;
   margin: 24px auto;
   background: #fff;
-  padding: 48px;
+  padding: 52px 56px;
   border-radius: 12px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- Shared header (resume + cover letter) ---- */
+
+.doc-header {
+  border-bottom: 2px solid #171717;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
 }
 
 .doc-header h1 {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.contact-line,
-.date-line {
+.contact-line {
+  margin: 0;
   color: #525252;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
-.resume section,
-.cover-letter {
-  margin-top: 18px;
+.contact-line a {
+  color: #525252;
+  text-decoration: none;
+}
+
+.contact-line a:hover {
+  color: #171717;
+  text-decoration: underline;
+}
+
+.contact-line .sep {
+  color: #c7c7c7;
+}
+
+/* ---- Resume ---- */
+
+.resume section {
+  margin-top: 20px;
 }
 
 .resume h2 {
-  font-size: 15px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid #e5e5e5;
-  padding-bottom: 4px;
+  letter-spacing: 0.08em;
+  color: #171717;
 }
 
-.experience-entry,
-.education-entry {
-  margin-bottom: 14px;
-}
-
-.experience-entry h3 {
+.summary {
   margin: 0;
-  font-size: 15px;
 }
 
-.experience-entry .dates {
+.skill-group {
+  margin-bottom: 8px;
+}
+
+.skill-group:last-child {
+  margin-bottom: 0;
+}
+
+.skill-category {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: #404040;
+  margin-right: 6px;
+}
+
+.skills-list {
+  font-size: 12.5px;
+}
+
+.entry {
+  margin-bottom: 16px;
+}
+
+.entry:last-child {
+  margin-bottom: 0;
+}
+
+.entry-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.entry-subrow {
+  margin-top: 1px;
+}
+
+.entry-title {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.entry-org {
+  font-style: italic;
+  color: #404040;
+  font-size: 13px;
+}
+
+.entry-meta {
   color: #737373;
-  font-size: 12px;
-  margin: 2px 0 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.entry ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.entry li {
+  margin-bottom: 3px;
+}
+
+.entry li:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Cover letter ---- */
+
+.date-line {
+  color: #525252;
+  font-size: 13px;
+  margin: 18px 0 0;
+}
+
+.letter-body {
+  margin-top: 18px;
+}
+
+.letter-body p {
+  margin: 0 0 14px;
+}
+
+.letter-body .closing {
+  margin-top: 20px;
 }

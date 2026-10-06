@@ -4,12 +4,28 @@ const express = require('express');
 const { STATUSES, LABELS, buildFunnel } = require('../funnel');
 
 const LIST_SQL = `
-  SELECT a.*, r.id AS resume_id, c.id AS cover_letter_id
+  SELECT a.*, r.id AS resume_id, r.structured_json AS resume_structured_json, c.id AS cover_letter_id
   FROM applications a
   LEFT JOIN generated_documents r ON r.application_id = a.id AND r.doc_type = 'resume'
   LEFT JOIN generated_documents c ON c.application_id = a.id AND c.doc_type = 'cover_letter'
   ORDER BY a.applied_date DESC, a.id DESC
 `;
+
+// match_score lives inside the resume's structured_json (see documents.js),
+// not its own column — pull it out for the tracker table without exposing
+// the whole blob (matched/missing keyword lists) in the list response.
+function withMatchScore(row) {
+  const { resume_structured_json, ...rest } = row;
+  let match_score = null;
+  if (resume_structured_json) {
+    try {
+      match_score = JSON.parse(resume_structured_json).match_score ?? null;
+    } catch {
+      // leave as null if the JSON is somehow malformed
+    }
+  }
+  return { ...rest, match_score };
+}
 
 function fieldsFromBody(body) {
   return {
@@ -54,7 +70,7 @@ module.exports = function applicationsRouter(db) {
   });
 
   router.get('/', (req, res) => {
-    res.json(db.prepare(LIST_SQL).all());
+    res.json(db.prepare(LIST_SQL).all().map(withMatchScore));
   });
 
   router.post('/', (req, res) => {

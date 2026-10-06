@@ -9,6 +9,7 @@ import type { Education, Profile } from '@/lib/types'
 
 const EMPTY_PROFILE: Profile = {
   full_name: '',
+  email: '',
   phone: '',
   address: '',
   github_url: '',
@@ -69,6 +70,10 @@ export function ProfileTab() {
           <div className="grid gap-1.5">
             <Label htmlFor="full_name">Full Name</Label>
             <Input id="full_name" {...field('full_name')} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" {...field('email')} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="phone">Phone</Label>

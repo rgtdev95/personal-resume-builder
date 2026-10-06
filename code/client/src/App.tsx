@@ -24,7 +24,7 @@ function App() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-8">
+    <div className="mx-auto max-w-7xl p-4 md:p-8">
       <h1 className="mb-6 text-2xl font-semibold">Resume Builder &amp; Tracker</h1>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

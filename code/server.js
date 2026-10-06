@@ -4,6 +4,15 @@ const path = require('node:path');
 const express = require('express');
 const { openDefaultDb } = require('./db');
 
+// .env is optional — fine to run without one until you need AI generation
+// (askForJson in ai-client.js throws a clear error at call time if
+// OPENAI_API_KEY is still unset).
+try {
+  process.loadEnvFile(path.join(__dirname, '.env'));
+} catch {
+  /* no .env file yet */
+}
+
 const db = openDefaultDb();
 
 const app = express();

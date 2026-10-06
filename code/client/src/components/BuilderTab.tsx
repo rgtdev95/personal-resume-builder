@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2Icon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,10 +17,12 @@ interface ExtractResult {
   location: string
 }
 
-// Mirrors the old public/builder.js state machine 1:1: the tracker row is
-// created only inside ensureApplication(), called from generate() — never
-// from extract() or the duplicate-check — so Cancel before Generate is
-// always a pure client-side reset with nothing to clean up on the server.
+// Mirrors the old public/builder.js state machine: the tracker row is
+// created only inside ensureApplication(), called from doGenerateResume()/
+// generateCoverLetter() — never from extraction or the duplicate-check — so
+// Cancel before Generate is always a pure client-side reset with nothing to
+// clean up on the server. Extraction is no longer a separate manual step:
+// Generate Resume runs extract -> duplicate-check -> generate as one flow.
 export function BuilderTab({
   loadApplicationId,
   onGenerated,
@@ -31,6 +33,15 @@ export function BuilderTab({
   onViewExisting: () => void
 }) {
   const applicationIdRef = useRef<number | null>(null)
+  // What company/job title applicationIdRef is actually bound to. Extraction
+  // can hand back different details than what created/loaded that binding
+  // (you pasted a new posting without clicking Cancel first) — without this,
+  // ensureApplication() would silently reuse the old application, so the
+  // "new" generation would overwrite a previous job's resume with content
+  // built from that old row's (stale) job_description instead of creating a
+  // new tracker row for the posting you just pasted.
+  const boundCompanyRef = useRef<string | null>(null)
+  const boundJobTitleRef = useRef<string | null>(null)
 
   const [jobUrl, setJobUrl] = useState('')
   const [jobDescription, setJobDescription] = useState('')
@@ -40,11 +51,15 @@ export function BuilderTab({
   const [location, setLocation] = useState('')
   const [usedCoverLetter, setUsedCoverLetter] = useState(true)
 
-  const [extractStatus, setExtractStatus] = useState('')
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>([])
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([])
-  const [resultMessage, setResultMessage] = useState<{ text: string; docId?: number; label?: string } | null>(null)
+  const [resultMessage, setResultMessage] = useState<{ text: string; docId?: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  // Cover Letter generation is only offered once a resume exists for this
+  // draft — either just generated, or already present on an application
+  // loaded from the Tracker tab — not as a standing option up front.
+  const [hasResume, setHasResume] = useState(false)
 
   function loadSources() {
     fetchJson<Source[]>('/api/sources').then((all) => {
@@ -60,6 +75,8 @@ export function BuilderTab({
     reset()
     fetchJson<Application>(`/api/applications/${loadApplicationId}`).then((app) => {
       applicationIdRef.current = app.id
+      boundCompanyRef.current = app.company
+      boundJobTitleRef.current = app.job_title
       setJobUrl(app.job_url)
       setJobDescription(app.job_description)
       setJobTitle(app.job_title)
@@ -67,12 +84,15 @@ export function BuilderTab({
       setCompensation(app.compensation)
       setLocation(app.location)
       setUsedCoverLetter(!!app.used_cover_letter)
+      setHasResume(!!app.resume_id)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadApplicationId])
 
   function reset() {
     applicationIdRef.current = null
+    boundCompanyRef.current = null
+    boundJobTitleRef.current = null
     setJobUrl('')
     setJobDescription('')
     setJobTitle('')
@@ -80,16 +100,16 @@ export function BuilderTab({
     setCompensation('')
     setLocation('')
     setUsedCoverLetter(true)
-    setExtractStatus('')
     setDuplicateWarning(null)
     setResultMessage(null)
+    setHasResume(false)
     loadSources()
   }
 
-  async function checkDuplicate(companyValue: string, jobTitleValue: string) {
+  async function checkDuplicate(companyValue: string, jobTitleValue: string): Promise<boolean> {
     if (!companyValue.trim() || !jobTitleValue.trim()) {
       setDuplicateWarning(null)
-      return
+      return false
     }
     const result = await fetchJson<DuplicateCheckResult>(
       `/api/applications/check-duplicate?company=${encodeURIComponent(companyValue)}&job_title=${encodeURIComponent(jobTitleValue)}`
@@ -99,43 +119,26 @@ export function BuilderTab({
         `You already have an application for ${jobTitleValue} at ${companyValue} ` +
           `(status: ${result.application.status}, applied ${result.application.applied_date}).`
       )
-    } else {
-      setDuplicateWarning(null)
+      return true
     }
-  }
-
-  async function extract() {
-    if (!jobDescription.trim()) {
-      setExtractStatus('Paste a job description first.')
-      return
-    }
-    setExtractStatus('Extracting... (calls the AI, may take a few seconds)')
-    try {
-      const data = await fetchJson<ExtractResult>('/api/documents/extract', {
-        method: 'POST',
-        body: JSON.stringify({ job_description_text: jobDescription }),
-      })
-      setCompany(data.company || '')
-      setJobTitle(data.job_title || '')
-      setCompensation(data.compensation || '')
-      setLocation(data.location || '')
-      setExtractStatus('Extracted — review the fields below before generating.')
-      await checkDuplicate(data.company || '', data.job_title || '')
-    } catch (err) {
-      setExtractStatus(`Extraction failed: ${err instanceof Error ? err.message : String(err)}`)
-    }
+    setDuplicateWarning(null)
+    return false
   }
 
   async function ensureApplication(): Promise<number> {
     if (applicationIdRef.current) return applicationIdRef.current
-    if (!jobTitle.trim() || !company.trim()) {
-      throw new Error('Job title and company are required (use Extract, or fill them in manually).')
-    }
+    // Job title/company are just tracker labels, not something generation
+    // needs — extraction can legitimately miss them (a posting with no
+    // named company, an imperfect extraction), and that shouldn't block
+    // generating the resume. Fall back to a placeholder and let the row be
+    // edited in the Tracker tab afterward instead of erroring out here.
+    const finalJobTitle = jobTitle.trim() || 'Untitled Position'
+    const finalCompany = company.trim() || 'Unknown Company'
     const created = await fetchJson<Application>('/api/applications', {
       method: 'POST',
       body: JSON.stringify({
-        job_title: jobTitle.trim(),
-        company: company.trim(),
+        job_title: finalJobTitle,
+        company: finalCompany,
         compensation: compensation.trim(),
         job_url: jobUrl.trim(),
         location: location.trim(),
@@ -144,23 +147,92 @@ export function BuilderTab({
       }),
     })
     applicationIdRef.current = created.id
+    boundCompanyRef.current = created.company
+    boundJobTitleRef.current = created.job_title
+    setJobTitle(created.job_title)
+    setCompany(created.company)
     return created.id
   }
 
-  async function generate(kind: 'resume' | 'cover_letter') {
-    const label = kind === 'resume' ? 'Resume' : 'Cover letter'
-    setResultMessage({ text: `Generating ${label.toLowerCase()}... (calls the AI, may take up to a minute)` })
+  async function doGenerateResume() {
+    setLoading(true)
+    setResultMessage({ text: 'Generating resume... (calls the AI, may take up to a minute)' })
     try {
       const id = await ensureApplication()
-      const path = kind === 'resume' ? 'generate-resume' : 'generate-cover-letter'
-      const doc = await fetchJson<{ id: number }>(`/api/documents/${path}`, {
+      const doc = await fetchJson<{ id: number; structured_json: string }>('/api/documents/generate-resume', {
         method: 'POST',
         body: JSON.stringify({ application_id: id, source_ids: selectedSourceIds }),
       })
-      setResultMessage({ text: `${label} generated.`, docId: doc.id, label })
+      const data = JSON.parse(doc.structured_json) as { match_score?: number }
+      let text = "Resume generated and saved to your Tracker — you're all set to view it."
+      if (typeof data.match_score === 'number') text += ` Match score: ${data.match_score}%.`
+      setResultMessage({ text, docId: doc.id })
+      setHasResume(true)
       onGenerated()
     } catch (err) {
       setResultMessage({ text: `Generation failed: ${err instanceof Error ? err.message : String(err)}` })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function generateResume() {
+    if (!jobDescription.trim()) {
+      setResultMessage({ text: 'Paste a job description first.' })
+      return
+    }
+    setLoading(true)
+    setResultMessage({ text: 'Extracting job details from the posting...' })
+    try {
+      const data = await fetchJson<ExtractResult>('/api/documents/extract', {
+        method: 'POST',
+        body: JSON.stringify({ job_description_text: jobDescription }),
+      })
+      // A different company/title than whatever applicationIdRef is bound to
+      // means this is a new posting pasted over an old draft without
+      // clicking Cancel — clear the stale binding so ensureApplication()
+      // creates a fresh tracker row instead of overwriting the old one.
+      if (
+        applicationIdRef.current &&
+        ((data.company || '') !== boundCompanyRef.current || (data.job_title || '') !== boundJobTitleRef.current)
+      ) {
+        applicationIdRef.current = null
+        boundCompanyRef.current = null
+        boundJobTitleRef.current = null
+        setHasResume(false)
+      }
+      setCompany(data.company || '')
+      setJobTitle(data.job_title || '')
+      setCompensation(data.compensation || '')
+      setLocation(data.location || '')
+      const isDuplicate = await checkDuplicate(data.company || '', data.job_title || '')
+      if (isDuplicate) {
+        setLoading(false)
+        setResultMessage(null)
+        return
+      }
+      await doGenerateResume()
+    } catch (err) {
+      setLoading(false)
+      setResultMessage({ text: `Extraction failed: ${err instanceof Error ? err.message : String(err)}` })
+    }
+  }
+
+  async function generateCoverLetter() {
+    setLoading(true)
+    setResultMessage({ text: 'Generating cover letter... (calls the AI, may take up to a minute)' })
+    try {
+      const id = await ensureApplication()
+      const doc = await fetchJson<{ id: number }>('/api/documents/generate-cover-letter', {
+        method: 'POST',
+        body: JSON.stringify({ application_id: id, source_ids: selectedSourceIds }),
+      })
+      setResultMessage({ text: "Cover letter generated and saved to your Tracker — you're all set to view it.", docId: doc.id })
+      onGenerated()
+    } catch (err) {
+      setResultMessage({ text: `Generation failed: ${err instanceof Error ? err.message : String(err)}` })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -171,7 +243,7 @@ export function BuilderTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Resume &amp; Cover Letter Builder</CardTitle>
+        <CardTitle>Resume Builder</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {duplicateWarning && (
@@ -191,7 +263,15 @@ export function BuilderTab({
                 >
                   View Existing
                 </Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setDuplicateWarning(null)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDuplicateWarning(null)
+                    doGenerateResume()
+                  }}
+                >
                   Proceed Anyway
                 </Button>
               </div>
@@ -211,18 +291,12 @@ export function BuilderTab({
               rows={10}
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Paste the full job description here..."
+              placeholder="Paste the full job description here, then click Generate Resume below..."
             />
-          </div>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" onClick={extract}>
-              Extract Details
-            </Button>
-            <span className="text-sm text-muted-foreground">{extractStatus}</span>
           </div>
 
           <fieldset className="grid gap-3 rounded-lg border p-4">
-            <legend className="px-1 text-sm font-medium">Extracted details (edit if needed)</legend>
+            <legend className="px-1 text-sm font-medium">Job details (filled in automatically when you generate, edit if needed)</legend>
             <div className="grid gap-1.5">
               <Label htmlFor="job_title">Job Title</Label>
               <Input
@@ -278,26 +352,33 @@ export function BuilderTab({
             ))}
           </fieldset>
 
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => generate('resume')}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={generateResume} disabled={loading}>
+              {loading && <Loader2Icon className="animate-spin" />}
               Generate Resume
             </Button>
-            <Button type="button" onClick={() => generate('cover_letter')}>
-              Generate Cover Letter
-            </Button>
-            <Button type="button" variant="outline" onClick={reset}>
+            {hasResume && (
+              <Button type="button" variant="outline" onClick={generateCoverLetter} disabled={loading}>
+                {loading && <Loader2Icon className="animate-spin" />}
+                Generate Cover Letter
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={reset} disabled={loading}>
               Cancel
             </Button>
           </div>
 
           {resultMessage && (
-            <p className="text-sm">
-              {resultMessage.text}{' '}
-              {resultMessage.docId && (
-                <a className="text-primary underline" href={`/document.html?id=${resultMessage.docId}`} target="_blank" rel="noreferrer">
-                  Open &amp; edit
-                </a>
-              )}
+            <p className="flex items-center gap-2 text-sm">
+              {loading && <Loader2Icon className="size-4 shrink-0 animate-spin text-muted-foreground" />}
+              <span>
+                {resultMessage.text}{' '}
+                {resultMessage.docId && (
+                  <a className="text-primary underline" href={`/document.html?id=${resultMessage.docId}`} target="_blank" rel="noreferrer">
+                    Open &amp; edit
+                  </a>
+                )}
+              </span>
             </p>
           )}
         </div>

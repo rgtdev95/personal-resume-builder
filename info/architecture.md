@@ -17,23 +17,26 @@ For current build status, see [context.md](context.md).
 | Frontend | React 19 + TypeScript, built with Vite, styled with Tailwind CSS v4 + shadcn/ui (Radix primitives) — a separate app in `code/client/`, built and served by Express (see [decisions/2026-09-21-shadcn-ui-migration.md](decisions/2026-09-21-shadcn-ui-migration.md)) |
 | Document viewer | `public/document.html` stays plain HTML/CSS/JS, no React — a standalone print/edit target with no need for the frontend framework |
 | Charts | ECharts (Sankey), imported as a real module in the React app (tree-shaken: core + SankeyChart + TooltipComponent + CanvasRenderer), no CDN |
-| AI | The `claude` CLI (Claude Code), invoked as a subprocess — not the Anthropic API/SDK directly |
+| AI | OpenAI API (Chat Completions, `response_format: json_object`), called via native `fetch` — no SDK dependency |
 | PDF export | Browser's native print-to-PDF — no PDF library |
 | Tests | Node's built-in `node:test` (backend only) — no test framework |
 
 The backend (`code/package.json`) has one real dependency: `express`. The
 frontend (`code/client/package.json`) is its own Vite/React/shadcn project —
 see its `package.json` for the full list (react, vite, tailwindcss, the
-shadcn-generated UI primitives, echarts).
+shadcn-generated UI primitives, echarts, `marked` for rendering Markdown
+previews in the Work History tab).
 
 ## Project structure
 
 ```
 code/
-  server.js                 # Express app: static files (client/dist + public/), mounts routers
+  server.js                 # Express app: loads .env, static files (client/dist + public/), mounts routers
+  .env                       # gitignored — OPENAI_API_KEY (+ optional OPENAI_MODEL/OPENAI_BASE_URL)
+  .env.example                # committed template for the above
   db.js                     # node:sqlite setup, schema (CREATE TABLE ...), PRAGMA foreign_keys
   funnel.js                 # status taxonomy + the funnel roll-up algorithm (pure, no deps)
-  claude-cli.js              # spawns `claude -p`, parses its JSON output, one retry on bad JSON
+  ai-client.js                # calls the OpenAI API via fetch, parses its JSON output, one retry on bad JSON
   routes/
     profile.js                # GET/PUT /api/profile
     sources.js                # CRUD /api/sources
@@ -73,8 +76,17 @@ frontend — matched 1:1, so "what talks to `/api/sources`" is always
 Four tables in `code/db.js`. See that file for the exact `CREATE TABLE`
 statements; this is the shape:
 
+Columns added after the app was already in use (like `profile.email`) need
+an explicit migration, since `CREATE TABLE IF NOT EXISTS` is a no-op against
+a table that already exists — it doesn't add new columns to it.
+`db.js`'s `migrate()` runs on every server start, checks
+`PRAGMA table_info(<table>)`, and runs `ALTER TABLE ... ADD COLUMN` only for
+whatever's actually missing, so it's always safe to re-run and existing
+data is never touched. Add future columns the same way: add them to
+`SCHEMA_SQL` (for fresh installs) *and* to `migrate()` (for existing ones).
+
 **`profile`** — a single row (`id = 1`, enforced by a CHECK constraint).
-`full_name`, `phone`, `address`, `github_url`, `linkedin_url`,
+`full_name`, `email`, `phone`, `address`, `github_url`, `linkedin_url`,
 `portfolio_url` as plain text columns; `education_json` holds the education
 list (`[{degree, school, year}]`) as a JSON string — there's only ever one
 profile and nothing queries education independently, so a child table
@@ -97,6 +109,21 @@ HTML; overwritten when you edit-and-save on the document page),
 `source_ids_json` (which Work History entries fed this generation).
 `UNIQUE(application_id, doc_type)` makes "generate" an upsert — regenerating
 overwrites in place rather than creating a second copy.
+
+For `doc_type='resume'`, `structured_json` also carries `match_score`
+(0-100), `matched_keywords`, and `missing_keywords` — computed in
+code (`keywordCoverage()` in `routes/documents.js`), not by the AI: the
+percentage of the posting's AI-extracted must-have keywords that literally
+appear in the finished resume (whole-term, case-insensitive, plural
+allowed). `match_score` is `null` when no keywords could be extracted. These are display-only: they're
+read back out on the document page, in the Builder tab's result message,
+and (just the score) in the Tracker tab's Match column, but deliberately
+never make it into `html_snapshot` — a match score isn't something you'd
+print onto a resume you send to an employer.
+
+`structured_json.skills` (resume only) is
+`[{category: string, items: string[]}]` — the AI groups skills into
+categories that fit the candidate's field rather than one flat list.
 
 ### Status taxonomy & funnel chart
 
@@ -139,12 +166,12 @@ All routes are JSON in/out (`Content-Type: application/json`) except where noted
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/profile` | Fetch the profile |
-| PUT | `/api/profile` | Replace the profile (`full_name`, `phone`, `address`, `github_url`, `linkedin_url`, `portfolio_url`, `education[]`) |
+| PUT | `/api/profile` | Replace the profile (`full_name`, `email`, `phone`, `address`, `github_url`, `linkedin_url`, `portfolio_url`, `education[]`) |
 | GET | `/api/sources` | List all Work History entries |
 | POST | `/api/sources` | Create `{title, content}` |
 | PUT | `/api/sources/:id` | Update `{title, content}` |
 | DELETE | `/api/sources/:id` | Delete |
-| GET | `/api/applications` | List tracker rows (includes `resume_id`/`cover_letter_id` if generated) |
+| GET | `/api/applications` | List tracker rows (includes `resume_id`/`cover_letter_id` and `match_score` — pulled from the resume's `structured_json`, `null` until one's generated) |
 | POST | `/api/applications` | Create a tracker row |
 | GET | `/api/applications/check-duplicate?company=&job_title=` | Case-insensitive exact match check |
 | GET | `/api/applications/funnel` | Sankey-ready `{nodes, links}` for the Visualize tab |
@@ -160,23 +187,62 @@ All routes are JSON in/out (`Content-Type: application/json`) except where noted
 
 ## Design notes
 
-- **AI calls go through the `claude` CLI as a subprocess** (`claude -p
-  ... --output-format json --allowedTools ""`), never the Anthropic API
-  directly — this was an explicit choice so the app rides on your existing
-  `claude` login instead of needing a separate API key. `claude-cli.js`
-  uses `execFile` (never a shell string), so pasted job-description text is
-  never shell-interpreted.
-- **The tracker row is created at the moment you click Generate**, not
-  earlier in the Builder flow. `BuilderTab.tsx`'s `ensureApplication()`
-  POSTs `/api/applications` only if it doesn't already hold an
-  `applicationId` for the current draft (held in a `useRef`, not `useState`
-  — it doesn't need to trigger a re-render); the id it gets back is cached
-  there so a second Generate click in the same draft (e.g. cover letter
-  right after resume) reuses that row instead of creating a duplicate. This
-  is also what makes Cancel a pure client-side reset with nothing to clean
-  up on the server — creating the row right after the duplicate-check
-  instead would let Cancel leave a row with no documents ever attached to
-  it.
+- **AI calls go straight to the OpenAI API** (`ai-client.js`, native
+  `fetch`, no SDK) using `response_format: { type: 'json_object' }` so the
+  model itself is constrained to return valid JSON — `askForJson()` still
+  keeps a parse-and-one-retry safety net (with a stricter-instruction
+  suffix) in case that constraint ever slips. Config comes from `code/.env`
+  (`OPENAI_API_KEY` required, `OPENAI_MODEL`/`OPENAI_BASE_URL` optional),
+  loaded once at startup via Node's built-in `process.loadEnvFile()` — no
+  `dotenv` dependency needed. Missing the API key doesn't crash the
+  server; it only fails the specific `/extract`/`generate-*` calls, with an
+  error message pointing at `.env.example`. Default model (when
+  `OPENAI_MODEL` isn't set) is `gpt-6-luna` — the fastest/cheapest tier of
+  OpenAI's GPT-6 family, a reasonable default for a low-volume personal
+  tool; `gpt-6-sol`/`gpt-6-astra` are available via `.env` if tailoring
+  quality ever needs to be worth their higher cost.
+- **The tracker row is created at the moment a document actually
+  generates**, not earlier in the Builder flow. `BuilderTab.tsx`'s
+  `ensureApplication()` POSTs `/api/applications` only if it doesn't
+  already hold an `applicationId` for the current draft (held in a
+  `useRef`, not `useState` — it doesn't need to trigger a re-render); the
+  id it gets back is cached there so a second generate in the same draft
+  (e.g. Cover Letter right after Resume) reuses that row instead of
+  creating a duplicate. This is also what makes Cancel a pure client-side
+  reset with nothing to clean up on the server — creating the row right
+  after the duplicate-check instead would let Cancel leave a row with no
+  documents ever attached to it.
+- **Generate Resume runs extract → duplicate-check → generate as one
+  client-side flow**, not three separate user actions. `generateResume()`
+  in `BuilderTab.tsx` calls `/api/documents/extract`, populates the
+  job-detail fields from the result, runs the same duplicate check the old
+  manual "Extract Details" button used to trigger on blur, and only then
+  calls `/api/documents/generate-resume` — pausing (not calling
+  generate-resume) if a duplicate is found, exactly like before. The
+  extracted fields stay visible and editable the whole time; nothing about
+  `/api/documents/extract` itself changed, only what calls it and when.
+  Job title/company are treated as optional at this stage —
+  `ensureApplication()` falls back to `"Untitled Position"`/
+  `"Unknown Company"` rather than blocking generation if extraction misses
+  either one, since neither field is something generation itself needs;
+  fix them up afterward via the Tracker tab's Edit dialog.
+- **Generate Cover Letter is conditionally rendered**, not always visible —
+  `BuilderTab.tsx`'s `hasResume` state (true once a resume has been
+  generated in this draft, or was already present on an application loaded
+  from the Tracker tab) gates the button. Most applications only need a
+  resume; offering cover-letter generation only once a resume exists keeps
+  the initial form to one primary action.
+- **`applicationIdRef`'s binding is validated against the current
+  extraction, not just trusted.** `BuilderTab.tsx` also tracks
+  `boundCompanyRef`/`boundJobTitleRef` — which company/title the current
+  `applicationIdRef` actually belongs to. If a fresh extraction (from
+  clicking Generate Resume again) comes back with a different
+  company/title, the binding is stale — you pasted a new posting without
+  clicking Cancel — so it's cleared before `ensureApplication()` runs,
+  forcing a new tracker row instead of silently overwriting the previous
+  job's resume with content generated from *its* stale
+  `job_description`. See
+  `info/decisions/2026-09-23-stale-application-binding-fix.md`.
 - **Tab content uses `forceMount` + CSS `hidden` instead of Radix Tabs'
   default of unmounting inactive panels.** Without it, switching away from
   the Builder tab mid-draft and back would wipe the draft (React would
@@ -194,3 +260,20 @@ All routes are JSON in/out (`Content-Type: application/json`) except where noted
   in your profile's factual fields and renders everything through one fixed
   HTML template per document type, so formatting stays consistent across
   every generation.
+- **All external contact links (GitHub/LinkedIn/Portfolio) get a scheme
+  forced onto them** (`normalizeUrl` in `documents.js`) before being used
+  in an `href`. A URL saved without `https://` would otherwise render as a
+  *relative* link — silently broken both on screen and in the exported
+  PDF — since nothing else validates that profile field on the way in.
+  Their visible link text is the URL itself (scheme/trailing slash
+  stripped), not a "GitHub"/"LinkedIn" label — a printed PDF doesn't
+  reliably keep the underlying hyperlink across every viewer, so the
+  address needs to be readable as plain text too.
+- **The match score is literal keyword coverage, computed in code.**
+  Resume generation is two AI calls: one extracts must-have keywords /
+  requirements / nice-to-haves from the posting, the second writes the
+  resume with those as an "ATS targeting checklist". The score is then the
+  share of must-have keywords found in the result — the writer can't grade
+  itself. Its ceiling: it's literal, so a synonym the posting didn't use
+  (e.g. "Citrix" vs. "Citrix Cloud") counts as missing. That's what an ATS
+  does too, so it's the right bias for this number.

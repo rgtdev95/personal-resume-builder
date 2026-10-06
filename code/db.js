@@ -13,6 +13,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS profile (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   full_name TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
   address TEXT NOT NULL DEFAULT '',
   github_url TEXT NOT NULL DEFAULT '',
@@ -59,9 +60,19 @@ CREATE TABLE IF NOT EXISTS generated_documents (
 );
 `;
 
+// CREATE TABLE IF NOT EXISTS is a no-op on a table that already exists, so
+// columns added after the app was first run need an explicit migration.
+function migrate(db) {
+  const columns = db.prepare('PRAGMA table_info(profile)').all().map((c) => c.name);
+  if (!columns.includes('email')) {
+    db.exec("ALTER TABLE profile ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+  }
+}
+
 function openDb(filename) {
   const db = new DatabaseSync(filename);
   db.exec(SCHEMA_SQL);
+  migrate(db);
   return db;
 }
 
@@ -71,4 +82,4 @@ function openDefaultDb() {
   return openDb(path.join(dataDir, 'resume-builder.db'));
 }
 
-module.exports = { openDb, openDefaultDb, SCHEMA_SQL };
+module.exports = { openDb, openDefaultDb, migrate, SCHEMA_SQL };

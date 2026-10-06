@@ -2,19 +2,20 @@
 
 A single-user, localhost-only web app that stores your profile and raw work
 history, tracks job applications, charts your application funnel, and uses
-the Claude Code CLI to generate a tailored resume and cover letter for each
-job application.
+the OpenAI API to generate a tailored resume and cover letter for each job
+application.
 
 ## Requirements
 
 - Node.js >= 24 (needed for the stable built-in `node:sqlite`)
-- The `claude` CLI installed and authenticated on this machine
+- An OpenAI API key
 
 ## Run it
 
 ```
 cd code
 npm install
+cp .env.example .env    # then add your OPENAI_API_KEY
 npm start
 ```
 
@@ -22,7 +23,9 @@ Then open **http://127.0.0.1:3000**. The SQLite file is created on first run
 at `code/data/resume-builder.db` (gitignored). `npm install`/`npm start` at
 the `code/` root cascade into `code/client/` automatically (its own
 `package.json` for the React/Vite/shadcn frontend) — there's nothing extra
-to remember day to day.
+to remember day to day. `code/.env` (gitignored) holds your OpenAI API key —
+the app runs fine without it until you try to extract/generate, which fails
+with a clear error telling you to add one.
 
 ## Developing the UI
 

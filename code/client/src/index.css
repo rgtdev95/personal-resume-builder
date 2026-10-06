@@ -128,3 +128,28 @@
     @apply font-sans;
     }
 }
+
+/* Rendered markdown preview (Work History source entries) — no typography
+   plugin installed, so just enough rules for headings/lists/emphasis to
+   read correctly instead of default browser flat text. */
+.markdown-preview :first-child {
+  margin-top: 0;
+}
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
+  @apply mt-4 mb-1 font-semibold;
+}
+.markdown-preview p, .markdown-preview ul, .markdown-preview ol {
+  @apply my-2;
+}
+.markdown-preview ul {
+  @apply list-disc pl-5;
+}
+.markdown-preview ol {
+  @apply list-decimal pl-5;
+}
+.markdown-preview code {
+  @apply rounded bg-muted px-1 py-0.5 text-xs;
+}
+.markdown-preview a {
+  @apply text-primary underline;
+}

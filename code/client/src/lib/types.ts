@@ -6,6 +6,7 @@ export interface Education {
 
 export interface Profile {
   full_name: string
+  email: string
   phone: string
   address: string
   github_url: string
@@ -43,6 +44,7 @@ export interface Application {
   updated_at: string
   resume_id?: number | null
   cover_letter_id?: number | null
+  match_score?: number | null
 }
 
 export interface GeneratedDocument {

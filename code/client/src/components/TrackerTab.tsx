@@ -130,6 +130,12 @@ export function TrackerTab({
 
   const statusLabel = (value: string) => statusOptions.find((s) => s.value === value)?.label ?? value
 
+  function matchScoreClass(score: number) {
+    if (score >= 70) return 'text-green-700 bg-green-100'
+    if (score >= 40) return 'text-amber-700 bg-amber-100'
+    return 'text-red-700 bg-red-100'
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -145,6 +151,7 @@ export function TrackerTab({
             <TableHead>Job URL</TableHead>
             <TableHead>Resume</TableHead>
             <TableHead>Cover Letter</TableHead>
+            <TableHead>Match</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
             <TableHead></TableHead>
@@ -153,7 +160,7 @@ export function TrackerTab({
         <TableBody>
           {applications.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="italic text-muted-foreground">
+              <TableCell colSpan={10} className="italic text-muted-foreground">
                 No applications yet.
               </TableCell>
             </TableRow>
@@ -190,6 +197,15 @@ export function TrackerTab({
                   <button type="button" className="text-primary underline" onClick={() => onGenerateFor(a.id)}>
                     generate
                   </button>
+                )}
+              </TableCell>
+              <TableCell>
+                {typeof a.match_score === 'number' ? (
+                  <span className={`rounded px-2 py-0.5 text-xs font-semibold ${matchScoreClass(a.match_score)}`}>
+                    {a.match_score}%
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">&mdash;</span>
                 )}
               </TableCell>
               <TableCell>
