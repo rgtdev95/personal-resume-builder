@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T00:00:00+08:00",
+  "title": "Design System: Resume Builder & Tracker",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Forest green" },
+      "background": { "role": "neutral", "displayName": "Workspace mist" },
+      "sidebar": { "role": "neutral", "displayName": "Sidebar sage" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Page heading", "purpose": "Current workspace section; 25px on mobile." },
+      "body": { "displayName": "Supporting copy", "purpose": "Descriptions and readable form guidance." }
+    },
+    "motion": [
+      { "name": "navigation-state", "value": "background-color 160ms ease-out, color 160ms ease-out", "purpose": "Sidebar hover and selection changes." },
+      { "name": "reduced-motion", "value": "transition-duration: .01ms; animation-duration: .01ms; animation-iteration-count: 1", "purpose": "Applied under prefers-reduced-motion: reduce, with automatic scrolling disabled." }
+    ],
+    "breakpoints": [
+      { "name": "mobile-max", "value": "767px" },
+      { "name": "editor-stack-max", "value": "1199px" },
+      { "name": "details-stack-max", "value": "1399px" },
+      { "name": "wide-min", "value": "1920px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary workspace action with shared keyboard and disabled states.",
+      "html": "<button class=\"ds-primary\">Create a resume</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:0 13px;border:1px solid transparent;border-radius:7px;background:var(--primary);color:var(--primary-foreground);font-family:'Geist Variable',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 150ms ease}.ds-primary:hover{background:color-mix(in oklab,var(--primary) 80%,transparent)}.ds-primary:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-primary:active{transform:translateY(1px)}.ds-primary:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-primary{transition-duration:.01ms}}"
+    }
+  ],
+  "narrative": {
+    "overview": "A light, focused desk workspace for managing opportunities and preparing career documents. Warm neutral surfaces provide a quiet frame; forest green identifies actions and selection. Documentation is grounded in source review; rendered visual acceptance remains pending.",
+    "keyCharacteristics": ["Clear table hierarchy and restrained accents", "Stable navigation with generous working space", "Flat, bordered surfaces and compact controls"],
+    "dos": ["Do preserve horizontal table scrolling and the wide-screen detail workflow.", "Do retain visible keyboard focus and text labels."],
+    "donts": ["Don't introduce fabricated metrics or a marketing hero into the working area.", "Don't apply shadows to ordinary workspace panels."]
+  }
+}

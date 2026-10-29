@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { FileText, Plus, Save, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -61,12 +62,12 @@ export function ProfileTab() {
   }
 
   return (
-    <Card>
+    <div className="profile-layout"><Card>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
+        <CardTitle>Personal information</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={save} className="flex max-w-xl flex-col gap-4">
+        <form onSubmit={save} className="profile-form">
           <div className="grid gap-1.5">
             <Label htmlFor="full_name">Full Name</Label>
             <Input id="full_name" {...field('full_name')} />
@@ -98,38 +99,42 @@ export function ProfileTab() {
 
           <fieldset className="grid gap-3 rounded-lg border p-4">
             <legend className="px-1 text-sm font-medium">Education</legend>
+            {profile.education.length === 0 && <p className="text-xs leading-relaxed text-muted-foreground">Add your degree, school, and graduation year to include them in your resume.</p>}
             {profile.education.map((ed, i) => (
               <div key={i} className="grid grid-cols-[2fr_2fr_1fr_auto] gap-2">
                 <Input
                   placeholder="Degree"
+                  aria-label={`Degree for education entry ${i + 1}`}
                   value={ed.degree}
                   onChange={(e) => updateEducation(i, { degree: e.target.value })}
                 />
                 <Input
                   placeholder="School"
+                  aria-label={`School for education entry ${i + 1}`}
                   value={ed.school}
                   onChange={(e) => updateEducation(i, { school: e.target.value })}
                 />
                 <Input
                   placeholder="Year"
+                  aria-label={`Year for education entry ${i + 1}`}
                   value={ed.year}
                   onChange={(e) => updateEducation(i, { year: e.target.value })}
                 />
-                <Button type="button" variant="ghost" size="icon" aria-label="Remove" onClick={() => removeEducation(i)}>
-                  &times;
+                <Button type="button" variant="ghost" size="icon" aria-label={`Remove education entry ${i + 1}`} onClick={() => removeEducation(i)}>
+                  <Trash2 aria-hidden="true" />
                 </Button>
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={addEducation} className="w-fit">
-              + Add education entry
+              <Plus aria-hidden="true" />Add education
             </Button>
           </fieldset>
 
           <Button type="submit" disabled={saving} className="w-fit">
-            Save Profile
+            <Save aria-hidden="true" />{saving ? 'Saving...' : 'Save profile'}
           </Button>
         </form>
       </CardContent>
-    </Card>
+    </Card><aside className="profile-guide"><FileText aria-hidden="true" /><h2>The details behind every application</h2><p>Your contact information and education are used when generating your resume and cover letter. Keep them up to date here.</p><h3>Let your experience do the talking</h3><p>Add your roles, projects, and achievements in Work history. You can choose which entries to include for each application.</p></aside></div>
   )
 }

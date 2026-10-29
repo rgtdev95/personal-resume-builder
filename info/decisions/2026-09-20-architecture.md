@@ -73,5 +73,5 @@ This keeps the Builder's Cancel button a pure client-side reset with no
 backend call in every case — creating the row earlier would let Cancel leave
 an orphan tracker entry with no documents ever attached.
 
-Full design detail: `C:\Users\sysowner\.claude\plans\partitioned-sleeping-raccoon.md`
+Full design detail: `local implementation plan (not included in the repository)`
 (implementation plan, approved 2026-09-20).

@@ -26,9 +26,10 @@ export function FunnelChart({ nodes, links }: { nodes: FunnelNode[]; links: Funn
     chartRef.current = chart
 
     const resize = () => chart.resize()
-    window.addEventListener('resize', resize)
+    const observer = new ResizeObserver(resize)
+    observer.observe(containerRef.current)
     return () => {
-      window.removeEventListener('resize', resize)
+      observer.disconnect()
       chart.dispose()
       chartRef.current = null
     }
@@ -36,6 +37,8 @@ export function FunnelChart({ nodes, links }: { nodes: FunnelNode[]; links: Funn
 
   useEffect(() => {
     chartRef.current?.setOption({
+      color: ['#397456', '#7c9f89', '#b09b68', '#8293ad', '#b58277'],
+      textStyle: { fontFamily: 'Geist Variable, sans-serif', fontSize: 12 },
       tooltip: {
         trigger: 'item',
         formatter: (params: { dataType?: string; data: { source?: string; target?: string; value?: number }; name: string }) =>
@@ -50,12 +53,12 @@ export function FunnelChart({ nodes, links }: { nodes: FunnelNode[]; links: Funn
           links,
           emphasis: { focus: 'adjacency' },
           lineStyle: { color: 'gradient', curveness: 0.5 },
-          label: { color: '#222' },
+          label: { color: '#354336', fontSize: 11 },
         },
       ],
     })
     chartRef.current?.resize()
   }, [nodes, links])
 
-  return <div ref={containerRef} className="h-[640px] w-full rounded-lg bg-card" />
+  return <div ref={containerRef} role="img" aria-label="Application funnel showing cover letter usage and progression through hiring stages" className="h-[560px] w-full bg-card" />
 }

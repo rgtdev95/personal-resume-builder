@@ -1,58 +1,54 @@
-# personal-resume-builder
+# Personal Resume Builder
 
-A single-user, localhost-only web app that stores your profile and raw work
-history, tracks job applications, charts your application funnel, and uses
-the OpenAI API to generate a tailored resume and cover letter for each job
-application.
+A single-user, localhost-only app for storing your profile and work history, tracking job applications, visualizing outcomes, and generating tailored resumes and cover letters.
+
+The light, forest-green workspace has five sections: **Applications**, **Resume & cover letter**, **Application insights**, **Work history**, and **Your profile**. Wide-screen layouts support a selectable application details pane and side-by-side editing; smaller screens stack the panels.
 
 ## Requirements
 
-- Node.js >= 24 (needed for the stable built-in `node:sqlite`)
-- An OpenAI API key
+- Node.js 24 or newer, including built-in node:sqlite.
+- An API key for AI extraction/generation. Tracking, profile, and work-history editing work without a key.
 
-## Run it
+## Run
 
-```
+From the repository root:
+
+```sh
 cd code
 npm install
-cp .env.example .env    # then add your OPENAI_API_KEY
+cp .env.example .env
+# Add your own OPENAI_API_KEY to .env.
 npm start
 ```
 
-Then open **http://127.0.0.1:3000**. The SQLite file is created on first run
-at `code/data/resume-builder.db` (gitignored). `npm install`/`npm start` at
-the `code/` root cascade into `code/client/` automatically (its own
-`package.json` for the React/Vite/shadcn frontend) — there's nothing extra
-to remember day to day. `code/.env` (gitignored) holds your OpenAI API key —
-the app runs fine without it until you try to extract/generate, which fails
-with a clear error telling you to add one.
+On PowerShell use Copy-Item .env.example .env instead of cp if preferred. If npm.ps1 is blocked, use npm.cmd.
 
-## Developing the UI
+Open http://127.0.0.1:3000. Installation also installs client dependencies; npm start builds the frontend and starts Express. The local database is created at code/data/resume-builder.db. Optional model, endpoint, and port overrides are shown in code/.env.example.
 
-The frontend (`code/client/`) is a separate Vite app, so `npm start`
-rebuilds it from scratch every time — fine for normal use, slow for
-iterating on styling. While actively working on the UI, run two terminals
-instead:
+## Develop and verify
 
-```
-node server.js              # terminal 1, from code/ — the API on :3000
-npm run dev:client           # terminal 2, from code/ — Vite + HMR on :5173
-```
+For UI development, run node server.js and npm run dev:client in separate terminals from code/. Vite proxies /api to the server. Saved-document pages are served by Express on port 3000; its /document.html and static assets are not proxied by Vite.
 
-Open the Vite terminal's URL (usually http://localhost:5173); it proxies
-`/api/*` to the Express server so there's one origin from the browser's
-point of view.
+- Backend tests: npm test from code/ (in-memory data; no live AI calls).
+- Frontend type-check/build: npm run build from code/client/.
+- Frontend lint: npm run lint from code/client/.
 
-## Test it
+Build/lint success does not replace browser verification. Rendered acceptance of the current redesign remains pending.
 
-```
-cd code
-npm test
-```
+## Documentation
 
-## Docs
+- [AGENTS.md](AGENTS.md): instructions for any coding agent.
+- [PRODUCT.md](PRODUCT.md) and [DESIGN.md](DESIGN.md): product scope and visual system.
+- [Features and usage](info/features.md): workflows, screens, generation, and known behavior.
+- [Architecture](info/architecture.md): structure, schema, state, and API reference.
+- [Current context](info/context.md): implementation status and limitations.
+- [Privacy review](info/privacy-review.md): pre-commit findings and remaining history exposure.
+- [Decisions](info/decisions/): historical implementation rationale; current docs/source take precedence over superseded details.
 
-- [info/features.md](info/features.md) — what each tab does, and the day-to-day workflow
-- [info/architecture.md](info/architecture.md) — tech stack, project structure, database schema, API reference
-- [info/context.md](info/context.md) — current status and conventions
-- [info/decisions/](info/decisions/) — why things were built the way they were
+## Data and privacy
+
+The database contains personal profile, work-history, application, and document data. Keep it and its backups out of version control. Store local resumes/exports in the ignored private/ folder. Environment files, private keys, local agent settings, build output, and UI review captures are ignored; code/.env.example is a blank credential template.
+
+Generation sends the posting and selected work history to the configured AI endpoint. Cover-letter generation can include prior structured resume content. The app has no authentication and binds to localhost.
+
+A personal document exists in the history recorded for origin/main. It has been preserved locally and removed from the next snapshot; that does not erase earlier commits. See the privacy review before publishing.

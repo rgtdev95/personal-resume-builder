@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Loader2Icon } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Check, FileText, Loader2Icon, RotateCcw } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,11 +24,15 @@ interface ExtractResult {
 // clean up on the server. Extraction is no longer a separate manual step:
 // Generate Resume runs extract -> duplicate-check -> generate as one flow.
 export function BuilderTab({
+  active,
   loadApplicationId,
+  loadRequest,
   onGenerated,
   onViewExisting,
 }: {
+  active: boolean
   loadApplicationId: number | null
+  loadRequest: number
   onGenerated: () => void
   onViewExisting: () => void
 }) {
@@ -53,6 +57,7 @@ export function BuilderTab({
 
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>([])
+  const knownSourceIdsRef = useRef(new Set<number>())
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([])
   const [resultMessage, setResultMessage] = useState<{ text: string; docId?: number } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -61,14 +66,16 @@ export function BuilderTab({
   // loaded from the Tracker tab — not as a standing option up front.
   const [hasResume, setHasResume] = useState(false)
 
-  function loadSources() {
+  function loadSources(resetSelection = false) {
     fetchJson<Source[]>('/api/sources').then((all) => {
+      const previousIds = knownSourceIdsRef.current
       setSources(all)
-      setSelectedSourceIds(all.map((s) => s.id))
-    })
+      setSelectedSourceIds((selected) => all.filter((source) => resetSelection || selected.includes(source.id) || !previousIds.has(source.id)).map((source) => source.id))
+      knownSourceIdsRef.current = new Set(all.map((source) => source.id))
+    }).catch((error: Error) => setResultMessage({ text: `Could not load work history: ${error.message}. Return to this section to try again.` }))
   }
 
-  useEffect(loadSources, [])
+  useEffect(() => { if (active) loadSources() }, [active])
 
   useEffect(() => {
     if (loadApplicationId == null) return
@@ -87,7 +94,7 @@ export function BuilderTab({
       setHasResume(!!app.resume_id)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadApplicationId])
+  }, [loadApplicationId, loadRequest])
 
   function reset() {
     applicationIdRef.current = null
@@ -103,7 +110,7 @@ export function BuilderTab({
     setDuplicateWarning(null)
     setResultMessage(null)
     setHasResume(false)
-    loadSources()
+    loadSources(true)
   }
 
   async function checkDuplicate(companyValue: string, jobTitleValue: string): Promise<boolean> {
@@ -241,148 +248,36 @@ export function BuilderTab({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Resume Builder</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {duplicateWarning && (
-          <Alert>
-            <AlertTriangle />
-            <AlertDescription className="flex flex-col gap-2">
-              <span>{duplicateWarning}</span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    reset()
-                    onViewExisting()
-                  }}
-                >
-                  View Existing
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setDuplicateWarning(null)
-                    doGenerateResume()
-                  }}
-                >
-                  Proceed Anyway
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid max-w-xl gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="job_url">Job URL</Label>
-            <Input id="job_url" type="url" value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="job_description">Job Description</Label>
-            <Textarea
-              id="job_description"
-              rows={10}
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Paste the full job description here, then click Generate Resume below..."
-            />
-          </div>
-
-          <fieldset className="grid gap-3 rounded-lg border p-4">
-            <legend className="px-1 text-sm font-medium">Job details (filled in automatically when you generate, edit if needed)</legend>
-            <div className="grid gap-1.5">
-              <Label htmlFor="job_title">Job Title</Label>
-              <Input
-                id="job_title"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                onBlur={() => checkDuplicate(company, jobTitle)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="company">Company</Label>
-              <Input
-                id="company"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                onBlur={() => checkDuplicate(company, jobTitle)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="compensation">Compensation</Label>
-              <Input id="compensation" value={compensation} onChange={(e) => setCompensation(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="location">Location</Label>
-              <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} />
-            </div>
-          </fieldset>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="used_cover_letter"
-              checked={usedCoverLetter}
-              onCheckedChange={(c) => setUsedCoverLetter(c === true)}
-            />
-            <Label htmlFor="used_cover_letter">Include a cover letter for this application</Label>
-          </div>
-
-          <fieldset className="grid gap-2 rounded-lg border p-4">
-            <legend className="px-1 text-sm font-medium">Include which source-of-truth entries?</legend>
-            {sources.length === 0 && (
-              <p className="text-sm italic text-muted-foreground">
-                No source entries yet &mdash; add some in the Work History tab first.
-              </p>
-            )}
-            {sources.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={selectedSourceIds.includes(s.id)}
-                  onCheckedChange={(c) => toggleSource(s.id, c === true)}
-                />
-                {s.title || `Source #${s.id}`}
-              </label>
-            ))}
-          </fieldset>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={generateResume} disabled={loading}>
-              {loading && <Loader2Icon className="animate-spin" />}
-              Generate Resume
-            </Button>
-            {hasResume && (
-              <Button type="button" variant="outline" onClick={generateCoverLetter} disabled={loading}>
-                {loading && <Loader2Icon className="animate-spin" />}
-                Generate Cover Letter
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={reset} disabled={loading}>
-              Cancel
-            </Button>
-          </div>
-
-          {resultMessage && (
-            <p className="flex items-center gap-2 text-sm">
-              {loading && <Loader2Icon className="size-4 shrink-0 animate-spin text-muted-foreground" />}
-              <span>
-                {resultMessage.text}{' '}
-                {resultMessage.docId && (
-                  <a className="text-primary underline" href={`/document.html?id=${resultMessage.docId}`} target="_blank" rel="noreferrer">
-                    Open &amp; edit
-                  </a>
-                )}
-              </span>
-            </p>
-          )}
+    <div className="resume-studio">
+      {duplicateWarning && <Alert className="studio-warning"><AlertTriangle /><AlertDescription><p>{duplicateWarning}</p><div className="flex flex-wrap gap-2 mt-3"><Button type="button" variant="outline" onClick={() => { reset(); onViewExisting() }}>View existing application</Button><Button type="button" variant="outline" onClick={() => { setDuplicateWarning(null); doGenerateResume() }}>Proceed anyway</Button></div></AlertDescription></Alert>}
+      <section className="studio-posting">
+        <div className="section-heading"><div><h2>The opportunity</h2><p>Start with the role you have in mind.</p></div><FileText aria-hidden="true" /></div>
+        <div className="studio-fields">
+          <div className="field-group"><Label htmlFor="job_url">Job posting URL <span className="optional-label">Optional</span></Label><Input id="job_url" type="url" value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} placeholder="https://company.com/careers/role" /></div>
+          <div className="field-group posting-description"><Label htmlFor="job_description">Job description</Label><Textarea id="job_description" rows={16} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the full job description here. Include the responsibilities, requirements, and anything else the employer is looking for." /><div className="field-footer"><span>Job details are extracted when you generate.</span><span>{jobDescription.length.toLocaleString()} characters</span></div></div>
         </div>
-      </CardContent>
-    </Card>
+      </section>
+      <div className="studio-context">
+        <section className="studio-section">
+          <div className="section-heading"><div><h2>Job details</h2><p>Filled automatically. You can edit them here.</p></div></div>
+          <div className="job-details-grid">
+            <div className="field-group"><Label htmlFor="job_title">Job title</Label><Input id="job_title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} onBlur={() => checkDuplicate(company, jobTitle)} placeholder="e.g. Software Engineer" /></div>
+            <div className="field-group"><Label htmlFor="company">Company</Label><Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} onBlur={() => checkDuplicate(company, jobTitle)} placeholder="Company name" /></div>
+            <div className="field-group"><Label htmlFor="compensation">Compensation</Label><Input id="compensation" value={compensation} onChange={(e) => setCompensation(e.target.value)} placeholder="Salary or range" /></div>
+            <div className="field-group"><Label htmlFor="location">Location</Label><Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City or remote" /></div>
+          </div>
+        </section>
+        <section className="studio-section">
+          <div className="section-heading"><div><h2>Your experience</h2><p>Choose the work history to draw from.</p></div><span className="selection-count">{selectedSourceIds.length} selected</span></div>
+          <div className="source-checklist">
+            {sources.length === 0 && <div className="inline-empty"><p>No work history yet. Add your experience before tailoring a resume.</p><span>Open Work history from the sidebar to get started.</span></div>}
+            {sources.map((source) => <label key={source.id} className="source-choice"><Checkbox checked={selectedSourceIds.includes(source.id)} onCheckedChange={(checked) => toggleSource(source.id, checked === true)} /><FileText aria-hidden="true" /><span>{source.title || `Source #${source.id}`}</span></label>)}
+          </div>
+        </section>
+        <div className="cover-letter-choice"><Checkbox id="used_cover_letter" checked={usedCoverLetter} onCheckedChange={(checked) => setUsedCoverLetter(checked === true)} /><Label htmlFor="used_cover_letter">Mark this application as using a cover letter</Label><p>Generate your resume first, then create its cover letter.</p></div>
+      </div>
+      <div className="studio-actionbar"><div className="studio-action-note"><FileText aria-hidden="true" /><span>Tailored to this role<span>Your generated documents are saved to Applications.</span></span></div><div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={reset} disabled={loading}><RotateCcw aria-hidden="true" />Clear draft</Button>{hasResume && <Button type="button" variant="outline" onClick={generateCoverLetter} disabled={loading}>{loading && <Loader2Icon className="animate-spin" />}Generate cover letter</Button>}<Button type="button" onClick={generateResume} disabled={loading}>{loading ? <Loader2Icon className="animate-spin" /> : <FileText aria-hidden="true" />}{loading ? 'Working on your documents…' : 'Generate resume'}{!loading && <ArrowUpRight aria-hidden="true" />}</Button></div></div>
+      {resultMessage && <div className={`generation-result ${resultMessage.docId ? 'is-complete' : ''}`} role="status">{loading ? <Loader2Icon className="size-4 animate-spin" /> : resultMessage.docId ? <Check className="size-4" /> : null}<span>{resultMessage.text}</span>{resultMessage.docId && <a href={`/document.html?id=${resultMessage.docId}`} target="_blank" rel="noreferrer">Open &amp; edit<ArrowUpRight aria-hidden="true" /></a>}</div>}
+    </div>
   )
 }

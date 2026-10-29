@@ -1,127 +1,65 @@
-# Features & Usage
+# Features and usage
 
-What each tab does, and the workflow for using the app day to day. For tech
-stack, project structure, database schema, and the API reference, see
-[architecture.md](architecture.md). For current build status, see
-[context.md](context.md).
+The app has five workspace sections. Switching sections preserves in-progress drafts. [architecture.md](architecture.md) describes the API and storage; [context.md](context.md) lists current limitations.
 
-## Profile tab
-Your name, email, phone, address, education (add as many entries as you
-want), and links (GitHub, LinkedIn, portfolio). One profile, saved as a
-whole on submit. Email (and the rest of these fields) is spliced into every
-generated resume/cover letter's contact line.
+## Your profile
 
-## Work History tab (source of truth)
-A free-form list of raw work-history text — old resumes, bullet dumps,
-project write-ups, anything. Add as many entries as you want. This is what
-the AI reads when it tailors a resume or cover letter; it's told to use only
-what's in these entries and never invent experience.
+Save your name, email, phone, address, GitHub/LinkedIn/portfolio links, and education. Education entries can be added or removed. These details are merged into generated documents. Updating the profile does not retroactively change saved documents.
 
-Entries are collapsed by default (click one, or its chevron, to expand it)
-so a handful of long entries — a whole pasted resume, say — doesn't turn the
-tab into a wall of text. Collapsed entries still show their title and
-character count.
+## Work history
 
-Each entry (and the "Add new entry" box) has an Edit/Preview toggle — if you
-paste content written in Markdown, switch to Preview to see it rendered
-(headings, lists, bold/italic, links) instead of raw text.
+Store detailed roles, projects, achievements, or old resume text as named entries. Entries are collapsed by default and show a character count. Expand an entry to edit its title/content, preview Markdown, and save it. Delete requires confirmation. The new-entry editor sits beside the library on larger screens.
 
-An entry can hold multiple jobs — paste a whole old resume with three jobs
-in it into one entry if you want. The one thing to know: in the Builder tab
-you select which *entries* to include per application, not which jobs
-within an entry. If you want the option to include one job but exclude
-another for a given application, put them in separate entries; if you'd
-always include them together anyway, one combined entry is simpler.
+Choose whole entries when tailoring documents. Separate jobs into different entries if you want to include them independently. New entries are selected by default when the resume editor refreshes its library; existing unchecked entries stay unchecked and deleted entries are removed.
 
-## Tracker tab
-The table of job applications: Job Title, Company, Compensation, Job URL,
-links to the generated Resume/Cover Letter, a Match column (the resume's
-match score, once one's been generated — see below), Status, Date. Add rows
-manually, edit or delete them, and change status inline from a dropdown as
-an application progresses. Deleting an application also deletes its
-generated documents.
+## Applications
 
-## Visualize tab
-A Sankey funnel chart (Applications → Cover Letter / No Cover Letter →
-outcome stages → final result), built live from the Tracker data — not
-hand-entered. See [architecture.md](architecture.md#status-taxonomy--funnel-chart)
-for how the chart is derived from the status data.
+Each opportunity groups the role, company, and location. Other columns show status, resume/cover-letter actions, keyword match, and application date.
 
-## Resume / Cover Letter tab (the builder)
-1. Paste a Job URL and the full job description.
-2. Pick which Work History entries to include (defaults to all).
-3. Click **Generate Resume**. This runs the whole flow in one click —
-   extracts company/job title/compensation/location from the pasted
-   description, runs the duplicate-application check, then generates the
-   resume — with a spinner and a status message ("Extracting...",
-   "Generating...") the whole way through. There's no separate "Extract
-   Details" button to click first. The extracted fields are still shown and
-   editable (extraction can be imperfect) — edit them and the
-   duplicate-check re-runs on blur.
-   - If you've already applied to this company for this role, generation
-     pauses with a warning showing the existing entry's status/date, and a
-     choice to view it instead or proceed anyway.
-   - Once the resume's done, it's saved to the Tracker automatically —
-     there's no separate "save" step — and a message confirms that with a
-     link to open it.
-   - Job title/company are just Tracker labels, not something generation
-     needs — if extraction misses either one, generation still proceeds
-     using a placeholder ("Untitled Position"/"Unknown Company") that you
-     can fix up later from the Tracker tab's Edit dialog.
-4. **Generate Cover Letter** only appears once a resume exists for this
-   application (just generated, or already generated — e.g. you got here
-   via the Tracker tab's "generate" link in the Cover Letter column). It's
-   not offered up front, since most applications only need the resume.
-5. **Cancel** resets the whole form. Since the tracker row isn't created
-   until a document is actually generated, Cancel never leaves a stray row
-   behind — but it also can't undo a generation that already happened;
-   Cancel only clears the form so you can start a fresh draft.
-6. Generated documents open in their own page (`document.html`) where the
-   text is directly editable (click and type) and there's a **Print / Save
-   as PDF** button that uses the browser's native print-to-PDF.
-7. A generated resume comes with a **match score** — the percentage of
-   the posting's must-have keywords (tools, platforms, certifications)
-   that literally appear in your resume, checked by code rather than the
-   AI's own opinion, plus which keywords you matched and which you
-   didn't (so you know what's worth building up in Work History,
-   or just going in aware of). The Builder tab shows the score right after
-   generating; the resume's own page shows the full breakdown (matched vs.
-   missing) in a banner above the document; the Tracker tab's Match column
-   shows it for every application at a glance, color-coded (green/amber/red).
-   This is meta-info for you — it's never printed onto the resume itself.
+- Search by company, role, or location.
+- Filter by All applications, Applied, Interviewing, Offers, or Closed, then optionally by an exact status. Stage counts describe all applications, independently of the search.
+- Sort newest or oldest first by application date.
+- Change status inline. The stage groups use the current status, not historical milestones: Interviewing includes first/second interview; Offers includes offer/accepted; Closed includes rejection, no response, unsuccessful interviews, unscheduled interviews, and declined offers.
+- Select a role or its arrow to view compensation, posting URL, full stored description, documents, and edit/delete actions. On wide screens details sit beside the table; on smaller screens they appear above it. Tables can scroll horizontally.
+- Add applications manually without generating documents. New applications start at Applied; change the status after saving if needed.
+- Open saved documents or go to the resume editor to generate them. Deleting an application also deletes its generated documents after confirmation.
 
-Resume content is written with keyword coverage in mind: the AI reads the
-job description's specific terms and, wherever your real experience
-actually supports it, uses the posting's own wording for it (matching an
-ATS keyword scan) — it won't claim a skill your work history doesn't back
-up just because the posting mentions it. Bullets are written to be
-substantive and thorough (real detail — the specific tools/systems/scale
-involved, not one-line summaries) with no fixed bullet count: a role with
-a long, detailed Work History entry (especially your current role) gets a
-correspondingly long set of bullets, while a role you only wrote a
-sentence or two about stays short — the source material's own depth
-decides the length, not a target number. Skills are grouped into
-categories that fit your background (e.g. "Networking", "Security &
-Monitoring") and shown as a plain comma-separated list per category near
-the bottom of the resume, just above Education.
+## Resume & cover letter
 
-Contact links (GitHub/LinkedIn/Portfolio) are shown as their actual URL
-text rather than a "GitHub"/"LinkedIn" label, so the address is still
-readable if you print/save the resume as a PDF and the hyperlink itself
-doesn't carry over in whatever you open it with.
+1. Add your profile and work history first.
+2. Paste the full job description. The posting URL is optional; the app reads the pasted description and does not fetch the URL.
+3. Select the work-history entries to use. Entries default to selected. **Current limitation:** clearing every checkbox still causes the backend to use all entries.
+4. Select **Generate resume**. The client extracts company, role, compensation, and location, checks for an existing application, and then requests generation. An existing company/role match pauses the flow with a choice to view the existing application or proceed.
+5. Review the extracted job details and resulting document. Missing company/title values use editable tracker placeholders. Extraction runs again when Generate resume is selected and can replace manually entered job details.
+6. Once a resume is available in the current draft, **Generate cover letter** is shown. The cover-letter prompt uses selected work history and the stored structured resume when available. Loading a saved application can currently leave this button hidden until a resume is generated again because the single-application endpoint omits document IDs.
+7. **Clear draft** resets the editor; it does not undo saved documents or remove application records. Application creation occurs before document generation completes, so failures can leave an application in the tracker.
 
-## Day-to-day workflow
+Generating a resume creates or updates its application and saves a document automatically. Regenerating a document replaces the saved document of that type for the same application. Reopening the same application from the tracker reloads its draft.
 
-First time through:
-1. Fill in the **Profile** tab and save.
-2. Add one or more entries in **Work History** with your real, detailed
-   background — the more detail, the better the AI's output.
-3. For each job you're applying to, go to **Resume / Cover Letter**: paste
-   the posting and click Generate Resume, review the extracted fields
-   afterward if needed, print the result (or copy the text) and submit
-   your application.
-4. As responses come in, update the status on that row in **Tracker**.
-5. Check **Visualize** any time to see your funnel.
+The server extracts required keywords, then asks the writer to tailor content using only the supplied work history. Prompt rules request all roles in the selected entries, substantive bullets without a fixed count, categorized plain-text skills, and no invented claims. These are instructions to the model, not guarantees: review every generated document before using it.
 
-You can also add a Tracker row manually (skip AI generation entirely) if you
-already applied somewhere without using the builder.
+The cover-letter checkbox records whether this application uses a cover letter. It does not automatically generate one.
+
+## Keyword match
+
+After resume generation, code checks which extracted must-have keywords literally appear in the structured resume. The percentage is shown in Applications and the generation result. The document viewer shows matched/missing terms. Matching is case-insensitive and allows plural endings; synonyms may count as missing. No extracted keywords means no score.
+
+This measures keyword coverage, not hiring likelihood. The match banner is excluded from printing. Manual document edits do not recalculate it.
+
+## Document editing and PDF export
+
+Saved documents open at document.html?id=... in a separate page. Click inside the document to edit, then select **Save** to persist the HTML. Edits are not automatically saved. **Print / Save as PDF** opens the browser print dialog; select a PDF destination there. Contact links display readable URLs.
+
+Only HTML is edited: the original structured content remains unchanged, including the data used as context for a later cover letter. Regenerating overwrites the saved document, including manual HTML edits.
+
+## Application insights
+
+A live Sankey chart groups applications by cover-letter usage and hiring-stage outcomes. It derives paths from each application's current status, with explicit in-progress leaves where needed. It is not a time-series event history. Revisit the section to refresh the report after status changes. An expandable table provides the actual source stage, destination stage, and application count for every chart link.
+
+## Typical workflow
+
+Save your profile, build your experience library, paste a posting in Resume & cover letter, generate and review documents, save edits, and print/export. Track the application and update its status as responses arrive. Use Application insights to review outcomes. You can also track applications manually without using AI generation.
+
+## Data and privacy
+
+Data stays in a local SQLite file, but generation sends the pasted posting and selected work-history content to the configured AI endpoint. Cover-letter generation can also send the existing structured resume. Profile details are merged locally into the saved document. Keep environment files, databases, real documents, and personal notes outside version control. This local app has no authentication.

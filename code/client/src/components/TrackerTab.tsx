@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
+import { ArrowDownUp, ArrowUpRight, BriefcaseBusiness, Check, ExternalLink, FileText, MapPin, Plus, Search, Trash2, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,299 +11,208 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { fetchJson } from '@/lib/api'
 import type { Application, StatusOption } from '@/lib/types'
 
-type Draft = {
-  id: number | null
-  job_title: string
-  company: string
-  compensation: string
-  job_url: string
-  location: string
-  used_cover_letter: boolean
-  applied_date: string
-  status: string
+type Draft = Pick<Application, 'job_title' | 'company' | 'compensation' | 'job_url' | 'location' | 'applied_date' | 'status'> & { id: number | null; used_cover_letter: boolean }
+const blankDraft = (status: string): Draft => ({ id: null, job_title: '', company: '', compensation: '', job_url: '', location: '', applied_date: new Date().toISOString().slice(0, 10), status, used_cover_letter: false })
+const interviewStatuses = ['interview', 'interview_2nd']
+const offerStatuses = ['offer', 'offer_accepted']
+const closedStatuses = ['rejected', 'no_response', 'interview_no_offer', 'interview_never_scheduled', 'interview_2nd_no_offer', 'offer_declined']
+function statusTone(status: string) {
+  if (offerStatuses.includes(status)) return 'positive'
+  if (interviewStatuses.includes(status)) return 'interview'
+  if (closedStatuses.includes(status)) return 'closed'
+  return 'applied'
+}
+function readableDate(value: string) {
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? value || 'Not set' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function blankDraft(defaultStatus: string): Draft {
-  return {
-    id: null,
-    job_title: '',
-    company: '',
-    compensation: '',
-    job_url: '',
-    location: '',
-    used_cover_letter: false,
-    applied_date: new Date().toISOString().slice(0, 10),
-    status: defaultStatus,
-  }
-}
-
-function draftFromApplication(a: Application): Draft {
-  return {
-    id: a.id,
-    job_title: a.job_title,
-    company: a.company,
-    compensation: a.compensation,
-    job_url: a.job_url,
-    location: a.location,
-    used_cover_letter: !!a.used_cover_letter,
-    applied_date: a.applied_date,
-    status: a.status,
-  }
-}
-
-export function TrackerTab({
-  onGenerateFor,
-  refreshSignal,
-}: {
-  onGenerateFor: (id: number) => void
-  refreshSignal: number
-}) {
+export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (id: number) => void; refreshSignal: number }) {
   const [applications, setApplications] = useState<Application[]>([])
   const [statusOptions, setStatusOptions] = useState<StatusOption[]>([])
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [group, setGroup] = useState('all')
+  const [newestFirst, setNewestFirst] = useState(true)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [draft, setDraft] = useState<Draft>(blankDraft('applied'))
 
   function load() {
-    fetchJson<Application[]>('/api/applications').then(setApplications)
+    fetchJson<Application[]>('/api/applications').then((data) => { setApplications(data); setLoadError('') }).catch((error: Error) => setLoadError(error.message)).finally(() => setLoading(false))
   }
-
-  useEffect(() => {
-    fetchJson<StatusOption[]>('/api/applications/statuses').then(setStatusOptions)
-  }, [])
-
-  // Re-fetch on mount and whenever the Builder tab reports a document was
-  // generated (which sets a row's resume_id/cover_letter_id) — Tracker has
-  // no other way to know that happened, since generation doesn't go through
-  // any handler owned by this component.
+  useEffect(() => { fetchJson<StatusOption[]>('/api/applications/statuses').then(setStatusOptions).catch((error: Error) => toast.error(error.message)) }, [])
   useEffect(load, [refreshSignal])
 
-  function openAdd() {
-    setDraft(blankDraft(statusOptions[0]?.value ?? 'applied'))
-    setDialogOpen(true)
-  }
-
-  function openEdit(a: Application) {
-    setDraft(draftFromApplication(a))
-    setDialogOpen(true)
-  }
-
+  function openAdd() { setDraft(blankDraft(statusOptions[0]?.value ?? 'applied')); setDialogOpen(true) }
+  function openEdit(a: Application) { setDraft({ ...a, used_cover_letter: !!a.used_cover_letter }); setDialogOpen(true) }
   async function saveDialog(e: React.FormEvent) {
     e.preventDefault()
-    const payload = {
-      job_title: draft.job_title,
-      company: draft.company,
-      compensation: draft.compensation,
-      job_url: draft.job_url,
-      location: draft.location,
-      used_cover_letter: draft.used_cover_letter,
-      applied_date: draft.applied_date,
-      status: draft.status,
-    }
-    if (draft.id) {
-      await fetchJson(`/api/applications/${draft.id}`, { method: 'PUT', body: JSON.stringify(payload) })
-    } else {
-      await fetchJson('/api/applications', { method: 'POST', body: JSON.stringify(payload) })
-    }
-    setDialogOpen(false)
-    load()
+    setSaving(true)
+    try {
+      const { id, ...payload } = draft
+      await fetchJson(id ? `/api/applications/${id}` : '/api/applications', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) })
+      setDialogOpen(false)
+      toast.success(id ? 'Application updated.' : 'Application added.')
+      load()
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save application. Please try again.') }
+    finally { setSaving(false) }
   }
-
   async function updateStatus(a: Application, status: string) {
-    setApplications((apps) => apps.map((x) => (x.id === a.id ? { ...x, status } : x)))
-    await fetchJson(`/api/applications/${a.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...a, status }),
-    })
+    try {
+      await fetchJson(`/api/applications/${a.id}`, { method: 'PUT', body: JSON.stringify({ ...a, status }) })
+      setApplications((apps) => apps.map((x) => x.id === a.id ? { ...x, status } : x))
+      toast.success('Status updated.')
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not update status.') }
   }
-
   async function remove(a: Application) {
-    if (!confirm(`Delete the tracker entry for ${a.job_title} at ${a.company}? This also deletes its generated documents.`))
-      return
-    await fetchJson(`/api/applications/${a.id}`, { method: 'DELETE' })
-    load()
+    if (!confirm(`Delete the application for ${a.job_title} at ${a.company}? Its generated documents will also be deleted.`)) return
+    try {
+      await fetchJson(`/api/applications/${a.id}`, { method: 'DELETE' })
+      if (selectedId === a.id) setSelectedId(null)
+      load()
+      toast.success('Application deleted.')
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not delete application.') }
   }
-
   const statusLabel = (value: string) => statusOptions.find((s) => s.value === value)?.label ?? value
+  const groups = [
+    { value: 'all', label: 'All applications', count: applications.length },
+    { value: 'applied', label: 'Applied', count: applications.filter((a) => a.status === 'applied').length },
+    { value: 'interview', label: 'Interviewing', count: applications.filter((a) => interviewStatuses.includes(a.status)).length },
+    { value: 'offer', label: 'Offers', count: applications.filter((a) => offerStatuses.includes(a.status)).length },
+    { value: 'closed', label: 'Closed', count: applications.filter((a) => closedStatuses.includes(a.status)).length },
+  ]
+  const filteredApplications = applications.filter((a) =>
+    (group === 'all' || (group === 'applied' ? a.status === 'applied' : group === 'interview' ? interviewStatuses.includes(a.status) : group === 'offer' ? offerStatuses.includes(a.status) : closedStatuses.includes(a.status))) &&
+    (statusFilter === 'all' || a.status === statusFilter) &&
+    [a.job_title, a.company, a.location].join(' ').toLowerCase().includes(query.trim().toLowerCase())
+  ).sort((a, b) => (newestFirst ? -1 : 1) * (a.applied_date.localeCompare(b.applied_date) || a.id - b.id))
+  const selected = applications.find((a) => a.id === selectedId)
+  const clearFilters = () => { setQuery(''); setGroup('all'); setStatusFilter('all') }
 
-  function matchScoreClass(score: number) {
-    if (score >= 70) return 'text-green-700 bg-green-100'
-    if (score >= 40) return 'text-amber-700 bg-amber-100'
-    return 'text-red-700 bg-red-100'
+  function documentLink(a: Application, kind: 'resume' | 'cover_letter') {
+    const id = kind === 'resume' ? a.resume_id : a.cover_letter_id
+    const label = kind === 'resume' ? 'Resume' : 'Cover letter'
+    return id ? <a className="document-link" href={`/document.html?id=${id}`} target="_blank" rel="noreferrer"><FileText aria-hidden="true" />{label}<ArrowUpRight aria-hidden="true" /></a> : <button className="document-link document-missing" onClick={() => onGenerateFor(a.id)}><Plus aria-hidden="true" />{label}</button>
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button onClick={openAdd}>+ Add Application Manually</Button>
+    <div className="tracker-layout">
+      <div className="application-stage-tabs" aria-label="Filter applications by stage">
+        {groups.map((item) => <button key={item.value} aria-pressed={group === item.value} onClick={() => { setGroup(item.value); setStatusFilter('all') }}>{item.label}<span>{loading ? '–' : item.count}</span></button>)}
       </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Job Title</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Compensation</TableHead>
-            <TableHead>Job URL</TableHead>
-            <TableHead>Resume</TableHead>
-            <TableHead>Cover Letter</TableHead>
-            <TableHead>Match</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {applications.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={10} className="italic text-muted-foreground">
-                No applications yet.
-              </TableCell>
-            </TableRow>
-          )}
-          {applications.map((a) => (
-            <TableRow key={a.id}>
-              <TableCell>{a.job_title}</TableCell>
-              <TableCell>{a.company}</TableCell>
-              <TableCell>{a.compensation}</TableCell>
-              <TableCell>
-                {a.job_url && (
-                  <a href={a.job_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                    link
-                  </a>
-                )}
-              </TableCell>
-              <TableCell>
-                {a.resume_id ? (
-                  <a href={`/document.html?id=${a.resume_id}`} target="_blank" className="text-primary underline">
-                    view
-                  </a>
-                ) : (
-                  <button type="button" className="text-primary underline" onClick={() => onGenerateFor(a.id)}>
-                    generate
-                  </button>
-                )}
-              </TableCell>
-              <TableCell>
-                {a.cover_letter_id ? (
-                  <a href={`/document.html?id=${a.cover_letter_id}`} target="_blank" className="text-primary underline">
-                    view
-                  </a>
-                ) : (
-                  <button type="button" className="text-primary underline" onClick={() => onGenerateFor(a.id)}>
-                    generate
-                  </button>
-                )}
-              </TableCell>
-              <TableCell>
-                {typeof a.match_score === 'number' ? (
-                  <span className={`rounded px-2 py-0.5 text-xs font-semibold ${matchScoreClass(a.match_score)}`}>
-                    {a.match_score}%
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">&mdash;</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <Select value={a.status} onValueChange={(v) => updateStatus(a, v)}>
-                  <SelectTrigger size="sm">
-                    <SelectValue>
-                      <Badge variant="secondary">{statusLabel(a.status)}</Badge>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>{a.applied_date}</TableCell>
-              <TableCell className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEdit(a)}>
-                  Edit
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => remove(a)}>
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
+      <div className="tracker-toolbar">
+        <div className="tracker-search"><Search aria-hidden="true" /><Input aria-label="Search applications" placeholder="Search company, role, or location…" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger aria-label="Filter by exact status"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select>
+        <Button variant="outline" onClick={() => setNewestFirst((value) => !value)}><ArrowDownUp aria-hidden="true" />{newestFirst ? 'Newest first' : 'Oldest first'}</Button>
+        <Button className="add-application" onClick={openAdd}><Plus aria-hidden="true" />Add application</Button>
+      </div>
+      <div className={`application-workbench ${selected ? 'has-selection' : ''}`}>
+        <div className="tracker-surface">
+          {loadError ? <div className="workspace-empty" role="alert"><h2>Applications couldn’t be loaded</h2><p>{loadError}</p><Button variant="outline" onClick={load}>Try again</Button></div> : loading ? <div className="table-loading" role="status"><span className="sr-only">Loading applications</span>{[0, 1, 2, 3].map((i) => <div key={i}><span /><span /><span /></div>)}</div> : applications.length === 0 ? (
+            <div className="workspace-empty"><BriefcaseBusiness aria-hidden="true" /><h2>Make room for your next opportunity</h2><p>Add a role you’ve applied for. Your documents, application status, and job details will stay together here.</p><Button onClick={openAdd}><Plus aria-hidden="true" />Add your first application</Button></div>
+          ) : <Table>
+            <TableHeader><TableRow><TableHead>Opportunity</TableHead><TableHead>Status</TableHead><TableHead>Documents</TableHead><TableHead>Keyword match</TableHead><TableHead>Applied</TableHead><TableHead><span className="sr-only">View details</span></TableHead></TableRow></TableHeader>
+            <TableBody>
+              {filteredApplications.length === 0 && <TableRow><TableCell colSpan={6}><div className="workspace-empty compact"><Search aria-hidden="true" /><h2>No matching applications</h2><p>Try a different search or clear your filters.</p><Button variant="outline" onClick={clearFilters}>Clear filters</Button></div></TableCell></TableRow>}
+              {filteredApplications.map((a) => <TableRow key={a.id} data-selected={selectedId === a.id}>
+                <TableCell><div className="opportunity"><span className="company-monogram" aria-hidden="true">{a.company.trim().slice(0, 2).toUpperCase() || 'CO'}</span><div><button className="opportunity-title" onClick={() => setSelectedId(a.id)} aria-expanded={selectedId === a.id} aria-controls="application-details">{a.job_title}</button><span>{a.company}{a.location && <><span className="text-separator">·</span>{a.location}</>}</span></div></div></TableCell>
+                <TableCell><Select value={a.status} onValueChange={(v) => updateStatus(a, v)}><SelectTrigger size="sm" aria-label={`Status for ${a.job_title} at ${a.company}`} className={`status-select status-${statusTone(a.status)}`}><span className="status-dot" /><SelectValue>{statusLabel(a.status)}</SelectValue></SelectTrigger><SelectContent>{statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></TableCell>
+                <TableCell><div className="document-links">{documentLink(a, 'resume')}{documentLink(a, 'cover_letter')}</div></TableCell>
+                <TableCell>{typeof a.match_score === 'number' ? <span className={`match-score ${a.match_score >= 70 ? 'match-strong' : a.match_score >= 40 ? 'match-medium' : 'match-low'}`}><span />{a.match_score}%</span> : <span className="not-scored">Not scored</span>}</TableCell>
+                <TableCell className="application-date">{readableDate(a.applied_date)}</TableCell>
+                <TableCell><Button variant="ghost" size="icon" aria-label={`View ${a.job_title} at ${a.company}`} onClick={() => setSelectedId(a.id)}><ArrowUpRight aria-hidden="true" /></Button></TableCell>
+              </TableRow>)}
+            </TableBody>
+          </Table>}
+          <div className="tracker-footer" role="status"><span>{loading ? 'Loading your applications…' : `${filteredApplications.length} of ${applications.length} applications`}</span><span>Select a role to see its details</span></div>
+        </div>
+        {selected && <aside id="application-details" className="application-details" aria-label="Application details">
+          <div className="detail-topline"><span>Application details</span><Button variant="ghost" size="icon" aria-label="Close application details" onClick={() => setSelectedId(null)}><X aria-hidden="true" /></Button></div>
+          <span className="company-monogram detail-monogram" aria-hidden="true">{selected.company.trim().slice(0, 2).toUpperCase()}</span>
+          <h2>{selected.job_title}</h2><p className="detail-company">{selected.company}</p>
+          {selected.location && <p className="detail-location"><MapPin aria-hidden="true" />{selected.location}</p>}
+          <dl className="detail-facts"><div><dt>Status</dt><dd><span className={`status-label status-${statusTone(selected.status)}`}><span className="status-dot" />{statusLabel(selected.status)}</span></dd></div><div><dt>Applied</dt><dd>{readableDate(selected.applied_date)}</dd></div><div><dt>Compensation</dt><dd>{selected.compensation || 'Not provided'}</dd></div><div><dt>Cover letter used</dt><dd>{selected.used_cover_letter ? <><Check aria-hidden="true" />Yes</> : 'No'}</dd></div></dl>
+          {selected.job_url && <a className="detail-job-link" href={selected.job_url} target="_blank" rel="noreferrer">View job posting<ExternalLink aria-hidden="true" /></a>}
+          <section className="detail-section"><h3>Your documents</h3><div className="detail-documents">{documentLink(selected, 'resume')}{documentLink(selected, 'cover_letter')}</div><Button className="w-full" onClick={() => onGenerateFor(selected.id)}><FileText aria-hidden="true" />Tailor documents<ArrowUpRight aria-hidden="true" /></Button></section>
+          {selected.job_description && <section className="detail-section"><h3>Job description</h3><p className="detail-description">{selected.job_description}</p></section>}
+          <div className="detail-actions"><Button variant="outline" onClick={() => openEdit(selected)}>Edit application</Button><Button variant="ghost" size="icon" aria-label="Delete application" onClick={() => remove(selected)}><Trash2 aria-hidden="true" /></Button></div>
+        </aside>}
+      </div>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="application-dialog">
           <form onSubmit={saveDialog} className="flex flex-col gap-3">
             <DialogHeader>
-              <DialogTitle>{draft.id ? 'Edit Application' : 'Add Application'}</DialogTitle>
+              <DialogTitle>{draft.id ? 'Edit Application' : 'Add Application'}</DialogTitle><DialogDescription>Keep the role and its application details together.</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="job_title">Job Title</Label>
+              <Label htmlFor="tracker_job_title">Job Title</Label>
               <Input
-                id="job_title"
+                id="tracker_job_title"
                 required
                 value={draft.job_title}
                 onChange={(e) => setDraft({ ...draft, job_title: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="company">Company</Label>
+              <Label htmlFor="tracker_company">Company</Label>
               <Input
-                id="company"
+                id="tracker_company"
                 required
                 value={draft.company}
                 onChange={(e) => setDraft({ ...draft, company: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="compensation">Compensation</Label>
+              <Label htmlFor="tracker_compensation">Compensation</Label>
               <Input
-                id="compensation"
+                id="tracker_compensation"
                 value={draft.compensation}
                 onChange={(e) => setDraft({ ...draft, compensation: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="job_url">Job URL</Label>
+              <Label htmlFor="tracker_job_url">Job URL</Label>
               <Input
-                id="job_url"
+                id="tracker_job_url"
                 type="url"
                 value={draft.job_url}
                 onChange={(e) => setDraft({ ...draft, job_url: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="tracker_location">Location</Label>
               <Input
-                id="location"
+                id="tracker_location"
                 value={draft.location}
                 onChange={(e) => setDraft({ ...draft, location: e.target.value })}
               />
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
-                id="used_cover_letter"
+                id="tracker_used_cover_letter"
                 checked={draft.used_cover_letter}
                 onCheckedChange={(c) => setDraft({ ...draft, used_cover_letter: c === true })}
               />
-              <Label htmlFor="used_cover_letter">Used a cover letter</Label>
+              <Label htmlFor="tracker_used_cover_letter">Used a cover letter</Label>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="applied_date">Date</Label>
+              <Label htmlFor="tracker_applied_date">Date</Label>
               <Input
-                id="applied_date"
+                id="tracker_applied_date"
                 type="date"
                 value={draft.applied_date}
                 onChange={(e) => setDraft({ ...draft, applied_date: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label>Status</Label>
+              <Label htmlFor="tracker_status">Status</Label>
               <Select value={draft.status} onValueChange={(v) => setDraft({ ...draft, status: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="tracker_status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -325,7 +229,7 @@ export function TrackerTab({
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save application'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

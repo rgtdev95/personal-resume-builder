@@ -1,32 +1,15 @@
-# React + TypeScript + Vite
+# Resume Builder workspace frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React, TypeScript, Vite, Tailwind v4, Radix/shadcn controls, and ECharts. The five workspace sections preserve drafts across navigation. The standalone saved-document viewer lives in ../public and is served by Express.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From code/, run node server.js for the API and npm run dev:client in another terminal for Vite. Vite proxies /api to localhost:3000. Use http://127.0.0.1:3000/document.html?id=... for the document viewer; its assets are served by Express, not Vite.
 
-## React Compiler
+## Checks
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From this directory, run npm run build and npm run lint. The build type-checks before bundling. Use npm.cmd on Windows if the PowerShell wrapper is blocked.
 
-## Expanding the Oxlint configuration
+## Documentation
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+See ../../AGENTS.md for project instructions, ../../DESIGN.md for visual rules, and ../../info/features.md and ../../info/architecture.md for actual behavior and limitations. Browser verification must be reported separately from build/lint checks.

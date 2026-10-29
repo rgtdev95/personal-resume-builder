@@ -15,6 +15,32 @@ npm-debug.log*
 # Env files
 .env
 .env.local
+.env.*
+!.env.example
+
+# Personal documents and local-only agent configuration
+/private/
+/info/notes/my-resume.md
+**/settings.local.json
+.impeccable/config.local.json
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/build/
+
+# Credentials and database files/backups, wherever created
+*.pem
+*.key
+*.p12
+*.pfx
+*.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite-*
+*.sqlite.*
+*.sqlite3
+*.sqlite3-*
+*.sqlite3.*
 
 # OS
 .DS_Store

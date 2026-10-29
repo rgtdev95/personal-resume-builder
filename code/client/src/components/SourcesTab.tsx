@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
+import { ChevronDownIcon, ChevronRightIcon, FileText, Plus, Trash2 } from 'lucide-react'
 import { marked } from 'marked'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchJson } from '@/lib/api'
@@ -29,7 +30,7 @@ function ContentEditor({ content, onChange, rows }: { content: string; onChange:
         <TabsTrigger value="preview">Preview</TabsTrigger>
       </TabsList>
       <TabsContent value="edit">
-        <Textarea rows={rows} value={content} onChange={(e) => onChange(e.target.value)} placeholder="Paste raw detail here (Markdown supported)..." />
+        <Textarea aria-label="Work history content" rows={rows} value={content} onChange={(e) => onChange(e.target.value)} placeholder="Paste raw detail here (Markdown supported)..." />
       </TabsContent>
       <TabsContent value="preview">
         <MarkdownPreview text={content} />
@@ -65,9 +66,9 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
   }
 
   return (
-    <Card>
+    <Card className="source-entry">
       <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
+        <div className="source-entry-header flex items-center gap-2">
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
@@ -84,18 +85,18 @@ function SourceCard({ source, onChanged }: { source: Source; onChanged: () => vo
               <span className="shrink-0 text-xs text-muted-foreground">{content.length.toLocaleString()} chars</span>
             )}
           </button>
-          <Button type="button" variant="destructive" size="sm" onClick={remove}>
-            Delete
+          <Button type="button" variant="ghost" size="icon" aria-label={`Delete ${title || 'untitled entry'}`} onClick={remove}>
+            <Trash2 aria-hidden="true" />
           </Button>
         </div>
         {!collapsed && (
-          <>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+          <div className="source-entry-body">
+            <Input aria-label="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
             <ContentEditor content={content} onChange={setContent} rows={10} />
             <Button type="button" size="sm" className="w-fit" disabled={saving} onClick={save}>
               Save
             </Button>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -106,6 +107,7 @@ export function SourcesTab() {
   const [sources, setSources] = useState<Source[]>([])
   const [newTitle, setNewTitle] = useState('')
   const [newContent, setNewContent] = useState('')
+  const [adding, setAdding] = useState(false)
 
   function load() {
     fetchJson<Source[]>('/api/sources').then(setSources)
@@ -115,41 +117,47 @@ export function SourcesTab() {
 
   async function addSource(e: React.FormEvent) {
     e.preventDefault()
-    await fetchJson('/api/sources', { method: 'POST', body: JSON.stringify({ title: newTitle, content: newContent }) })
-    setNewTitle('')
-    setNewContent('')
-    load()
+    setAdding(true)
+    try {
+      await fetchJson('/api/sources', { method: 'POST', body: JSON.stringify({ title: newTitle, content: newContent }) })
+      setNewTitle('')
+      setNewContent('')
+      load()
+      toast.success('Work history added.')
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not add work history.') }
+    finally { setAdding(false) }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-lg font-medium">Work History &mdash; Source of Truth</h2>
-        <p className="max-w-prose text-sm text-muted-foreground">
-          Paste raw, detailed work history here (old resumes, bullet dumps, project write-ups). Add as many entries as
-          you want &mdash; the AI reads all of it when tailoring a resume or cover letter.
-        </p>
+    <div className="sources-layout">
+      <div className="sources-introduction">
+        Keep the full story here: past resumes, role responsibilities, project write-ups, and achievements. Choose the relevant entries when tailoring each resume.
       </div>
 
-      {sources.length === 0 && <p className="text-sm italic text-muted-foreground">No source entries yet.</p>}
+      <div className="sources-list">
+      <div className="sources-list-heading">Your experience library<span>{sources.length} {sources.length === 1 ? 'entry' : 'entries'}</span></div>
+      {sources.length === 0 && <div className="tracker-surface workspace-empty"><FileText aria-hidden="true" /><h2>Give your resume a foundation</h2><p>Add your work experience in the entry editor. Detailed responsibilities and achievements make for better tailored documents.</p></div>}
       {sources.map((s) => (
         <SourceCard key={s.id} source={s} onChanged={load} />
       ))}
 
-      <Card>
+      </div>
+      <Card className="sources-add">
         <CardHeader>
-          <CardTitle>Add new entry</CardTitle>
+          <CardTitle>Add work history</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={addSource} className="flex flex-col gap-3">
+            <Label htmlFor="source-title">Entry title</Label>
             <Input
+              id="source-title"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Title (e.g. 'Resume 2023' or 'Acme Corp role')"
             />
             <ContentEditor content={newContent} onChange={setNewContent} rows={8} />
-            <Button type="submit" className="w-fit">
-              Add Source
+            <Button type="submit" className="w-fit" disabled={adding}>
+              <Plus aria-hidden="true" />{adding ? 'Adding...' : 'Add to work history'}
             </Button>
           </form>
         </CardContent>

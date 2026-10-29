@@ -69,4 +69,4 @@ shadcn's own `Input` wrapping the native picker, which already works;
 and well understood, one dependency saved.
 
 Full technical detail: `info/architecture.md`. Implementation plan (approved
-before building): `C:\Users\sysowner\.claude\plans\partitioned-sleeping-raccoon.md`.
+before building): `local implementation plan (not included in the repository)`.
