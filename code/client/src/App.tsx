@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { ArrowUpRight, BriefcaseBusiness, ChartNoAxesCombined, ChevronRight, FileText, Layers, Plus, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,6 +17,15 @@ const sections = [
   { value: 'profile', label: 'Your profile', icon: UserRound, description: 'Manage the personal details and education used in your documents.' },
 ]
 const TAB_CONTENT_CLASS = 'workspace-panel data-[state=inactive]:hidden'
+const SECTION_STORAGE_KEY = 'resume-builder-active-section'
+function initialSection() {
+  try {
+    const saved = sessionStorage.getItem(SECTION_STORAGE_KEY)
+    return sections.some((section) => section.value === saved) ? saved! : 'tracker'
+  } catch {
+    return 'tracker'
+  }
+}
 const mobileNavigationQuery = '(max-width: 767px)'
 function subscribeViewport(callback: () => void) {
   const media = window.matchMedia(mobileNavigationQuery)
@@ -25,12 +34,16 @@ function subscribeViewport(callback: () => void) {
 }
 
 function App() {
-  const [tab, setTab] = useState('tracker')
+  const [tab, setTab] = useState(initialSection)
   const [builderLoadId, setBuilderLoadId] = useState<number | null>(null)
   const [trackerRefreshSignal, setTrackerRefreshSignal] = useState(0)
   const [builderLoadRequest, setBuilderLoadRequest] = useState(0)
   const mobileNavigation = useSyncExternalStore(subscribeViewport, () => window.matchMedia(mobileNavigationQuery).matches, () => false)
   const section = sections.find((item) => item.value === tab)!
+
+  useEffect(() => {
+    try { sessionStorage.setItem(SECTION_STORAGE_KEY, tab) } catch { /* Navigation remains usable without storage. */ }
+  }, [tab])
 
   function openBuilderFor(id: number) {
     setBuilderLoadId(id)

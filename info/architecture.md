@@ -41,9 +41,9 @@ npm install in code/ also installs client dependencies through postinstall. npm 
 
 Five Radix Tabs panels remain mounted with forceMount and CSS-hidden inactive states, preserving editor drafts. Navigation orientation follows the mobile breakpoint so keyboard behavior matches the visible layout. The shell owns the selected section, builder application ID/load-request counter, and tracker refresh signal.
 
-Applications fetches rows/statuses, computes filters and date sorting locally, and displays a selected row in a details pane. Successful generation increments the tracker refresh signal. Resume & cover letter refreshes source entries on activation, preserving existing selections, selecting newly added entries, and removing deleted IDs. Reopening the same application increments a request counter so the editor loads it again. Insights refetches on activation; ResizeObserver resizes its chart and an HTML table exposes the underlying links/counts.
+Applications fetches rows/statuses, computes filters and date sorting locally, and displays a selected row in a details dialog. Successful generation increments the tracker refresh signal. Resume & cover letter refreshes source entries on activation, preserving existing selections, selecting newly added entries, and removing deleted IDs. Reopening the same application increments a request counter so the editor loads it again. Insights refetches on activation; ResizeObserver resizes its chart and an HTML table exposes the underlying links/counts.
 
-The desktop shell has a 244px sidebar (260px at widths of 1920px+). At 1400px+ selected application details sit alongside the table; below that they stack above it. Editors stack below 1200px. At 767px and below navigation becomes horizontal. Tables retain horizontal scrolling rather than squeezing all columns into the viewport.
+The desktop shell has a 244px sidebar (260px at widths of 1920px+). Application details and the new work-history editor open in scrollable dialogs. The resume editor stacks below 1200px. At 767px and below navigation becomes horizontal. Tables retain horizontal scrolling rather than squeezing all columns into the viewport.
 
 ## Database
 

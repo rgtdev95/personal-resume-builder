@@ -53,7 +53,6 @@ export function BuilderTab({
   const [company, setCompany] = useState('')
   const [compensation, setCompensation] = useState('')
   const [location, setLocation] = useState('')
-  const [usedCoverLetter, setUsedCoverLetter] = useState(true)
 
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>([])
@@ -90,7 +89,6 @@ export function BuilderTab({
       setCompany(app.company)
       setCompensation(app.compensation)
       setLocation(app.location)
-      setUsedCoverLetter(!!app.used_cover_letter)
       setHasResume(!!app.resume_id)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,7 +104,6 @@ export function BuilderTab({
     setCompany('')
     setCompensation('')
     setLocation('')
-    setUsedCoverLetter(true)
     setDuplicateWarning(null)
     setResultMessage(null)
     setHasResume(false)
@@ -132,25 +129,24 @@ export function BuilderTab({
     return false
   }
 
-  async function ensureApplication(): Promise<number> {
+  async function ensureApplication(details?: ExtractResult): Promise<number> {
     if (applicationIdRef.current) return applicationIdRef.current
     // Job title/company are just tracker labels, not something generation
     // needs — extraction can legitimately miss them (a posting with no
     // named company, an imperfect extraction), and that shouldn't block
     // generating the resume. Fall back to a placeholder and let the row be
     // edited in the Tracker tab afterward instead of erroring out here.
-    const finalJobTitle = jobTitle.trim() || 'Untitled Position'
-    const finalCompany = company.trim() || 'Unknown Company'
+    const finalJobTitle = (details?.job_title ?? jobTitle).trim() || 'Untitled Position'
+    const finalCompany = (details?.company ?? company).trim() || 'Unknown Company'
     const created = await fetchJson<Application>('/api/applications', {
       method: 'POST',
       body: JSON.stringify({
         job_title: finalJobTitle,
         company: finalCompany,
-        compensation: compensation.trim(),
+        compensation: (details?.compensation ?? compensation).trim(),
         job_url: jobUrl.trim(),
-        location: location.trim(),
+        location: (details?.location ?? location).trim(),
         job_description: jobDescription,
-        used_cover_letter: usedCoverLetter,
       }),
     })
     applicationIdRef.current = created.id
@@ -161,11 +157,11 @@ export function BuilderTab({
     return created.id
   }
 
-  async function doGenerateResume() {
+  async function doGenerateResume(details?: ExtractResult) {
     setLoading(true)
     setResultMessage({ text: 'Generating resume... (calls the AI, may take up to a minute)' })
     try {
-      const id = await ensureApplication()
+      const id = await ensureApplication(details)
       const doc = await fetchJson<{ id: number; structured_json: string }>('/api/documents/generate-resume', {
         method: 'POST',
         body: JSON.stringify({ application_id: id, source_ids: selectedSourceIds }),
@@ -218,7 +214,7 @@ export function BuilderTab({
         setResultMessage(null)
         return
       }
-      await doGenerateResume()
+      await doGenerateResume(data)
     } catch (err) {
       setLoading(false)
       setResultMessage({ text: `Extraction failed: ${err instanceof Error ? err.message : String(err)}` })
@@ -257,6 +253,7 @@ export function BuilderTab({
           <div className="field-group posting-description"><Label htmlFor="job_description">Job description</Label><Textarea id="job_description" rows={16} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the full job description here. Include the responsibilities, requirements, and anything else the employer is looking for." /><div className="field-footer"><span>Job details are extracted when you generate.</span><span>{jobDescription.length.toLocaleString()} characters</span></div></div>
         </div>
       </section>
+      <div className="studio-side">
       <div className="studio-context">
         <section className="studio-section">
           <div className="section-heading"><div><h2>Job details</h2><p>Filled automatically. You can edit them here.</p></div></div>
@@ -274,10 +271,10 @@ export function BuilderTab({
             {sources.map((source) => <label key={source.id} className="source-choice"><Checkbox checked={selectedSourceIds.includes(source.id)} onCheckedChange={(checked) => toggleSource(source.id, checked === true)} /><FileText aria-hidden="true" /><span>{source.title || `Source #${source.id}`}</span></label>)}
           </div>
         </section>
-        <div className="cover-letter-choice"><Checkbox id="used_cover_letter" checked={usedCoverLetter} onCheckedChange={(checked) => setUsedCoverLetter(checked === true)} /><Label htmlFor="used_cover_letter">Mark this application as using a cover letter</Label><p>Generate your resume first, then create its cover letter.</p></div>
       </div>
       <div className="studio-actionbar"><div className="studio-action-note"><FileText aria-hidden="true" /><span>Tailored to this role<span>Your generated documents are saved to Applications.</span></span></div><div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={reset} disabled={loading}><RotateCcw aria-hidden="true" />Clear draft</Button>{hasResume && <Button type="button" variant="outline" onClick={generateCoverLetter} disabled={loading}>{loading && <Loader2Icon className="animate-spin" />}Generate cover letter</Button>}<Button type="button" onClick={generateResume} disabled={loading}>{loading ? <Loader2Icon className="animate-spin" /> : <FileText aria-hidden="true" />}{loading ? 'Working on your documents…' : 'Generate resume'}{!loading && <ArrowUpRight aria-hidden="true" />}</Button></div></div>
       {resultMessage && <div className={`generation-result ${resultMessage.docId ? 'is-complete' : ''}`} role="status">{loading ? <Loader2Icon className="size-4 animate-spin" /> : resultMessage.docId ? <Check className="size-4" /> : null}<span>{resultMessage.text}</span>{resultMessage.docId && <a href={`/document.html?id=${resultMessage.docId}`} target="_blank" rel="noreferrer">Open &amp; edit<ArrowUpRight aria-hidden="true" /></a>}</div>}
+      </div>
     </div>
   )
 }

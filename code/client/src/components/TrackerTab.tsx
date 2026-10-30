@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ArrowDownUp, ArrowUpRight, BriefcaseBusiness, Check, ExternalLink, FileText, MapPin, Plus, Search, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowDownUp, ArrowUpRight, BriefcaseBusiness, Check, ExternalLink, FileText, MapPin, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -35,6 +35,7 @@ export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (i
   const [group, setGroup] = useState('all')
   const [newestFirst, setNewestFirst] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const detailsTriggerRef = useRef<HTMLButtonElement | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -48,7 +49,9 @@ export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (i
   useEffect(load, [refreshSignal])
 
   function openAdd() { setDraft(blankDraft(statusOptions[0]?.value ?? 'applied')); setDialogOpen(true) }
-  function openEdit(a: Application) { setDraft({ ...a, used_cover_letter: !!a.used_cover_letter }); setDialogOpen(true) }
+  function openEdit(a: Application) { setSelectedId(null); setDraft({ ...a, used_cover_letter: !!a.used_cover_letter }); setDialogOpen(true) }
+  function openDetails(id: number, trigger: HTMLButtonElement) { detailsTriggerRef.current = trigger; setSelectedId(id) }
+  function generateFor(id: number) { detailsTriggerRef.current = null; setSelectedId(null); onGenerateFor(id) }
   async function saveDialog(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -96,7 +99,7 @@ export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (i
   function documentLink(a: Application, kind: 'resume' | 'cover_letter') {
     const id = kind === 'resume' ? a.resume_id : a.cover_letter_id
     const label = kind === 'resume' ? 'Resume' : 'Cover letter'
-    return id ? <a className="document-link" href={`/document.html?id=${id}`} target="_blank" rel="noreferrer"><FileText aria-hidden="true" />{label}<ArrowUpRight aria-hidden="true" /></a> : <button className="document-link document-missing" onClick={() => onGenerateFor(a.id)}><Plus aria-hidden="true" />{label}</button>
+    return id ? <a className="document-link" href={`/document.html?id=${id}`} target="_blank" rel="noreferrer"><FileText aria-hidden="true" />{label}<ArrowUpRight aria-hidden="true" /></a> : <button className="document-link document-missing" onClick={() => generateFor(a.id)}><Plus aria-hidden="true" />{label}</button>
   }
 
   return (
@@ -110,7 +113,7 @@ export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (i
         <Button variant="outline" onClick={() => setNewestFirst((value) => !value)}><ArrowDownUp aria-hidden="true" />{newestFirst ? 'Newest first' : 'Oldest first'}</Button>
         <Button className="add-application" onClick={openAdd}><Plus aria-hidden="true" />Add application</Button>
       </div>
-      <div className={`application-workbench ${selected ? 'has-selection' : ''}`}>
+      <div className="application-workbench">
         <div className="tracker-surface">
           {loadError ? <div className="workspace-empty" role="alert"><h2>Applications couldn’t be loaded</h2><p>{loadError}</p><Button variant="outline" onClick={load}>Try again</Button></div> : loading ? <div className="table-loading" role="status"><span className="sr-only">Loading applications</span>{[0, 1, 2, 3].map((i) => <div key={i}><span /><span /><span /></div>)}</div> : applications.length === 0 ? (
             <div className="workspace-empty"><BriefcaseBusiness aria-hidden="true" /><h2>Make room for your next opportunity</h2><p>Add a role you’ve applied for. Your documents, application status, and job details will stay together here.</p><Button onClick={openAdd}><Plus aria-hidden="true" />Add your first application</Button></div>
@@ -119,29 +122,30 @@ export function TrackerTab({ onGenerateFor, refreshSignal }: { onGenerateFor: (i
             <TableBody>
               {filteredApplications.length === 0 && <TableRow><TableCell colSpan={6}><div className="workspace-empty compact"><Search aria-hidden="true" /><h2>No matching applications</h2><p>Try a different search or clear your filters.</p><Button variant="outline" onClick={clearFilters}>Clear filters</Button></div></TableCell></TableRow>}
               {filteredApplications.map((a) => <TableRow key={a.id} data-selected={selectedId === a.id}>
-                <TableCell><div className="opportunity"><span className="company-monogram" aria-hidden="true">{a.company.trim().slice(0, 2).toUpperCase() || 'CO'}</span><div><button className="opportunity-title" onClick={() => setSelectedId(a.id)} aria-expanded={selectedId === a.id} aria-controls="application-details">{a.job_title}</button><span>{a.company}{a.location && <><span className="text-separator">·</span>{a.location}</>}</span></div></div></TableCell>
+                <TableCell><div className="opportunity"><span className="company-monogram" aria-hidden="true">{a.company.trim().slice(0, 2).toUpperCase() || 'CO'}</span><div><button className="opportunity-title" aria-haspopup="dialog" onClick={(e) => openDetails(a.id, e.currentTarget)}>{a.job_title}</button><span>{a.company}{a.location && <><span className="text-separator">·</span>{a.location}</>}</span></div></div></TableCell>
                 <TableCell><Select value={a.status} onValueChange={(v) => updateStatus(a, v)}><SelectTrigger size="sm" aria-label={`Status for ${a.job_title} at ${a.company}`} className={`status-select status-${statusTone(a.status)}`}><span className="status-dot" /><SelectValue>{statusLabel(a.status)}</SelectValue></SelectTrigger><SelectContent>{statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></TableCell>
                 <TableCell><div className="document-links">{documentLink(a, 'resume')}{documentLink(a, 'cover_letter')}</div></TableCell>
                 <TableCell>{typeof a.match_score === 'number' ? <span className={`match-score ${a.match_score >= 70 ? 'match-strong' : a.match_score >= 40 ? 'match-medium' : 'match-low'}`}><span />{a.match_score}%</span> : <span className="not-scored">Not scored</span>}</TableCell>
                 <TableCell className="application-date">{readableDate(a.applied_date)}</TableCell>
-                <TableCell><Button variant="ghost" size="icon" aria-label={`View ${a.job_title} at ${a.company}`} onClick={() => setSelectedId(a.id)}><ArrowUpRight aria-hidden="true" /></Button></TableCell>
+                <TableCell><Button variant="ghost" size="icon" aria-haspopup="dialog" aria-label={`View ${a.job_title} at ${a.company}`} onClick={(e) => openDetails(a.id, e.currentTarget)}><ArrowUpRight aria-hidden="true" /></Button></TableCell>
               </TableRow>)}
             </TableBody>
           </Table>}
           <div className="tracker-footer" role="status"><span>{loading ? 'Loading your applications…' : `${filteredApplications.length} of ${applications.length} applications`}</span><span>Select a role to see its details</span></div>
         </div>
-        {selected && <aside id="application-details" className="application-details" aria-label="Application details">
-          <div className="detail-topline"><span>Application details</span><Button variant="ghost" size="icon" aria-label="Close application details" onClick={() => setSelectedId(null)}><X aria-hidden="true" /></Button></div>
-          <span className="company-monogram detail-monogram" aria-hidden="true">{selected.company.trim().slice(0, 2).toUpperCase()}</span>
-          <h2>{selected.job_title}</h2><p className="detail-company">{selected.company}</p>
+      </div>
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null) }}>
+        {selected && <DialogContent className="application-details" onCloseAutoFocus={(event) => { if (!dialogOpen && detailsTriggerRef.current?.isConnected) { event.preventDefault(); detailsTriggerRef.current.focus() } }}>
+          <div className="detail-topline">Application details</div>
+          <DialogTitle>{selected.job_title}</DialogTitle><DialogDescription className="detail-company">{selected.company}</DialogDescription>
           {selected.location && <p className="detail-location"><MapPin aria-hidden="true" />{selected.location}</p>}
           <dl className="detail-facts"><div><dt>Status</dt><dd><span className={`status-label status-${statusTone(selected.status)}`}><span className="status-dot" />{statusLabel(selected.status)}</span></dd></div><div><dt>Applied</dt><dd>{readableDate(selected.applied_date)}</dd></div><div><dt>Compensation</dt><dd>{selected.compensation || 'Not provided'}</dd></div><div><dt>Cover letter used</dt><dd>{selected.used_cover_letter ? <><Check aria-hidden="true" />Yes</> : 'No'}</dd></div></dl>
           {selected.job_url && <a className="detail-job-link" href={selected.job_url} target="_blank" rel="noreferrer">View job posting<ExternalLink aria-hidden="true" /></a>}
-          <section className="detail-section"><h3>Your documents</h3><div className="detail-documents">{documentLink(selected, 'resume')}{documentLink(selected, 'cover_letter')}</div><Button className="w-full" onClick={() => onGenerateFor(selected.id)}><FileText aria-hidden="true" />Tailor documents<ArrowUpRight aria-hidden="true" /></Button></section>
+          <section className="detail-section"><h3>Your documents</h3><div className="detail-documents">{documentLink(selected, 'resume')}{documentLink(selected, 'cover_letter')}</div><Button className="w-full" onClick={() => generateFor(selected.id)}><FileText aria-hidden="true" />Tailor documents<ArrowUpRight aria-hidden="true" /></Button></section>
           {selected.job_description && <section className="detail-section"><h3>Job description</h3><p className="detail-description">{selected.job_description}</p></section>}
           <div className="detail-actions"><Button variant="outline" onClick={() => openEdit(selected)}>Edit application</Button><Button variant="ghost" size="icon" aria-label="Delete application" onClick={() => remove(selected)}><Trash2 aria-hidden="true" /></Button></div>
-        </aside>}
-      </div>
+        </DialogContent>}
+      </Dialog>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="application-dialog">
           <form onSubmit={saveDialog} className="flex flex-col gap-3">

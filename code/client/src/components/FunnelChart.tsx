@@ -60,5 +60,5 @@ export function FunnelChart({ nodes, links }: { nodes: FunnelNode[]; links: Funn
     chartRef.current?.resize()
   }, [nodes, links])
 
-  return <div ref={containerRef} role="img" aria-label="Application funnel showing cover letter usage and progression through hiring stages" className="h-[560px] w-full bg-card" />
+  return <div ref={containerRef} role="img" aria-label="Application funnel showing cover letter usage and progression through hiring stages" className="funnel-chart w-full bg-card" />
 }

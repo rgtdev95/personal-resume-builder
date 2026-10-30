@@ -110,11 +110,13 @@ Keep paragraphs readable: page descriptions cap at 70ch, source introductions at
 
 ## Layout
 
-The desktop shell uses a 244px sticky sidebar and a fluid main column with 38px horizontal padding. The breadcrumb strip is 66px high. At 1920px and above, the sidebar grows to 260px and main padding to 56px.
+The desktop shell uses a 244px sticky sidebar and a fluid main column with 38px horizontal padding. The breadcrumb strip is 48px high at desktop widths and 66px on intermediate widths. At 1920px and above, the sidebar grows to 260px and main padding to 56px.
 
-The application workbench places a 340px detail panel beside the table at 1400px and above, growing to 380px at 1920px. Below 1400px, details move above the table. Preserve the table's 900px minimum width and horizontal scrolling rather than squeezing its six columns.
+At desktop widths of 1200px and above, compact spacing and viewport-responsive editor and chart heights keep the primary workspace visible on shorter screens. Long application lists scroll within the table, while extended content may still scroll the page.
 
-Editors use two-column grids with 24px gaps. Below 1200px, resume creation and work history become single-column layouts; the sidebar becomes 216px. Below 768px, navigation becomes a horizontal scrollable strip, main gutters become 16px, and forms become one column. Mobile inputs use 16px text and most actionable controls have a 44px minimum height.
+Application details open in a scrollable dialog above the table. Preserve the table's 900px minimum width and horizontal scrolling rather than squeezing its six columns.
+
+Resume creation uses a two-column grid on wide screens and stacks below 1200px, where the sidebar becomes 216px. Work history uses a full-width library and a wide new-entry dialog. Below 768px, navigation becomes a horizontal scrollable strip, main gutters become 16px, and forms become one column. Mobile inputs use 16px text and most actionable controls have a 44px minimum height.
 
 ## Elevation & Depth
 
@@ -148,7 +150,7 @@ The sidebar uses 13px labels, 17px line icons, and 43px minimum-height items. Se
 
 ## Do's and Don'ts
 
-- **Do** preserve the table's scrolling behavior and adjacent detail workflow on wide screens.
+- **Do** preserve the table's scrolling behavior and the application details dialog.
 - **Do** use green to explain action and selection, with neutral surfaces carrying most of the screen.
 - **Do** retain text labels, keyboard focus, reduced-motion support, and accessible form names.
 - **Don't** replace real application counts with decorative metrics.
